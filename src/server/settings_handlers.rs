@@ -1,5 +1,6 @@
 //! Server settings for admins (#195): read them, and save the ones that are not already set in
-//! config.toml or by an environment variable. Saved settings take effect when Brum restarts.
+//! config.toml or by an environment variable. Saved settings take effect when Brum restarts,
+//! except how the machine is shown (name badge, login page, tab title), which applies at once.
 
 use crate::config::saved::{self, Kind};
 use crate::config::{AppConfig, ConfigManager};
@@ -36,6 +37,27 @@ fn next_start(file: Option<&toml::Table>, saved_now: &std::collections::BTreeMap
     saved::compose(file, saved_now)
 }
 
+/// How this machine is shown right now (name badge, login page, tab title). These settings take
+/// effect as soon as they are saved, so they are read from what is saved instead of from the
+/// configuration Brum started with. A value in config.toml still wins, as at start-up.
+pub fn live_ui(state: &AppState) -> crate::config::UiConfig {
+    let saved_now = state.auth.saved_config_settings();
+    let file = ConfigManager::read_config_file_table(state.config.server.config_file.as_deref());
+    let mut ui = serde_json::to_value(&state.config.ui).unwrap_or(Value::Null);
+    let defaults = serde_json::to_value(crate::config::UiConfig::default()).unwrap_or(Value::Null);
+    for key in saved::LIVE {
+        let Some(field) = key.strip_prefix("ui.") else { continue };
+        if file.as_ref().map(|f| saved::table_has(f, key)).unwrap_or(false) {
+            continue; // set in config.toml: the running value came from there
+        }
+        let value = saved_now.get(*key).cloned().unwrap_or_else(|| defaults.get(field).cloned().unwrap_or(Value::Null));
+        if let Some(obj) = ui.as_object_mut() {
+            obj.insert(field.to_string(), value);
+        }
+    }
+    serde_json::from_value(ui).unwrap_or_else(|_| state.config.ui.clone())
+}
+
 pub async fn handle_get_server_settings(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
     require_admin(&extract_claims_or_local(&state, &headers)?)?;
     let file = ConfigManager::read_config_file_table(state.config.server.config_file.as_deref());
@@ -67,7 +89,7 @@ pub async fn handle_get_server_settings(State(state): State<AppState>, headers: 
             (saved::value_in(&running_json, spec.key), false)
         } else {
             let v = saved::value_in(&next_json, spec.key);
-            let pending = v != saved::value_in(&running_json, spec.key);
+            let pending = !saved::is_live(spec.key) && v != saved::value_in(&running_json, spec.key);
             (v, pending)
         };
         let mut entry = json!({
@@ -180,12 +202,14 @@ pub async fn handle_save_server_settings(State(state): State<AppState>, headers:
     let keys: Vec<&str> = writes.iter().map(|(k, _)| k.as_str()).collect();
     crate::tools::activity::record(&claims.sub, "server settings changed", &keys.join(", "), "", true);
     tracing::info!("{} changed server settings: {}", claims.sub, keys.join(", "));
+    // The name badge, login page and tab title apply at once; everything else after a restart
+    let restart_needed = keys.iter().any(|k| !saved::is_live(k));
     Ok(Json(json!({
         "success": true,
         "saved": writes.len(),
-        "restart_needed": true,
+        "restart_needed": restart_needed,
         "network_change": network_change.then(|| json!({ "host": next.server.host, "port": next.server.port, "seconds": TRIAL_SECONDS })),
-        "message": "Saved. The changes take effect when Brum restarts.",
+        "message": if restart_needed { "Saved. The changes take effect when Brum restarts." } else { "Saved. Already in use." },
     })))
 }
 

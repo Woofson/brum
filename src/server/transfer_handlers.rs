@@ -121,13 +121,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
             for i in &side.items {
                 crate::server::middleware::validate_tree_access(state, headers, &join(&side.folder, &i.name), write)?;
             }
-            let label = if !state.config.ui.hostname_badge.trim().is_empty() {
-                state.config.ui.hostname_badge.clone()
-            } else if !state.config.server.server_name.trim().is_empty() {
-                state.config.server.server_name.clone()
-            } else {
-                crate::server::system_handlers::get_system_hostname()
-            };
+            let label = crate::server::system_handlers::machine_label(state);
             Ok(Side { who: Some((claims.sub.clone(), claims.role.clone())), label, remote: None, folder })
         }
         "remote" => {

@@ -311,3 +311,90 @@ async fn settings_that_cannot_be_used_stay_and_a_read_only_file_is_left_alone() 
     let now = std::fs::read_to_string(&file).unwrap();
     assert!(now.contains("/no/such/folder/for/brum") && !now.contains("Den"), "{now}");
 }
+
+/// #196: the machine name badge, the login page and the tab title belong to the machine. Saving
+/// them in Server Settings shows them at once, for everyone and before sign-in, without a restart.
+#[tokio::test]
+async fn the_name_badge_and_login_page_apply_at_once() {
+    let dir = tempdir().unwrap();
+    let b = Brum::start(config(&dir, None)).await;
+    let status = || async {
+        // Public: the login page reads it before anyone signs in
+        let v: Value = reqwest::get(format!("http://127.0.0.1:{}/api/system/status", b.port)).await.unwrap().json().await.unwrap();
+        v
+    };
+    let before = status().await;
+    assert_eq!(before["show_hostname_badge"], json!(true));
+    assert_eq!(before["hostname_color"], json!("slate"));
+    assert!(before["login_title"].is_null());
+
+    let (st, body) = b.save(json!({
+        "ui.hostname_badge": "nas-prod",
+        "ui.hostname_color": "custom",
+        "ui.hostname_custom_text": "#f59e0b",
+        "ui.hostname_custom_glow": "rgba(245, 158, 11, 0.35)",
+        "ui.hostname_style": "glow",
+        "ui.login_title": "The Kennel",
+        "ui.login_subtitle_template": "$hostname at home",
+        "ui.window_title": "Kennel files",
+    })).await;
+    assert_eq!(st, 200, "{body}");
+    let saved: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(saved["restart_needed"], json!(false), "{body}");
+
+    let now = status().await;
+    assert_eq!(now["custom_hostname"], json!("nas-prod"));
+    assert_eq!(now["hostname_color"], json!("custom"));
+    assert_eq!(now["hostname_custom_text"], json!("#f59e0b"));
+    assert_eq!(now["hostname_custom_glow"], json!("rgba(245, 158, 11, 0.35)"));
+    assert_eq!(now["hostname_style"], json!("glow"));
+    assert_eq!(now["login_title"], json!("The Kennel"));
+    assert_eq!(now["login_subtitle_template"], json!("$hostname at home"));
+    assert_eq!(now["window_title"], json!("Kennel files"));
+    let health: Value = reqwest::get(format!("http://127.0.0.1:{}/api/health", b.port)).await.unwrap().json().await.unwrap();
+    assert_eq!(health["node_name"], json!("nas-prod"), "other Fleet machines see the same name");
+    let all = b.get().await;
+    assert_eq!(setting(&all, "ui.hostname_badge")["restart_needed"], json!(false));
+
+    // Hiding the badge, and back to Brum's own title, also at once
+    let (st, body) = b.save(json!({ "ui.show_hostname_badge": false, "ui.login_title": null })).await;
+    assert_eq!(st, 200, "{body}");
+    let now = status().await;
+    assert_eq!(now["show_hostname_badge"], json!(false));
+    assert!(now["login_title"].is_null());
+
+    // Anything else still waits for a restart
+    let (st, body) = b.save(json!({ "fleet.transfer_jobs": 4, "ui.hostname_size": "lg" })).await;
+    assert_eq!(st, 200, "{body}");
+    assert_eq!(serde_json::from_str::<Value>(&body).unwrap()["restart_needed"], json!(true));
+    assert_eq!(status().await["hostname_size"], json!("lg"));
+}
+
+#[tokio::test]
+async fn badge_colours_must_be_plain_colours() {
+    let dir = tempdir().unwrap();
+    let b = Brum::start(config(&dir, None)).await;
+    for bad in ["red; background: url(x)", "#12345", "rgb(1,2,3); x", "expression(alert(1))", "url(http://x)", "#ggg"] {
+        let (st, body) = b.save(json!({ "ui.hostname_custom_bg": bad })).await;
+        assert_eq!(st, 400, "{bad}: {body}");
+    }
+    for good in ["#fff", "#f59e0b", "#f59e0b80", "rgba(245, 158, 11, 0.12)", "hsl(38 92% 50% / 0.5)"] {
+        let (st, body) = b.save(json!({ "ui.hostname_custom_bg": good })).await;
+        assert_eq!(st, 200, "{good}: {body}");
+    }
+    // Empty goes back to Brum's own
+    let (st, _) = b.save(json!({ "ui.hostname_custom_bg": "" })).await;
+    assert_eq!(st, 200);
+    assert_eq!(setting(&b.get().await, "ui.hostname_custom_bg")["source"], json!("default"));
+}
+
+/// A badge text written in config.toml still wins over the page, as at start-up
+#[tokio::test]
+async fn a_badge_set_in_the_file_wins() {
+    let dir = tempdir().unwrap();
+    let b = Brum::start(config(&dir, Some("[ui]\nhostname_badge = \"from-file\"\n"))).await;
+    let (st, body) = b.save(json!({ "ui.hostname_badge": "from-page" })).await;
+    assert_eq!(st, 409, "{body}");
+    let v: Value = reqwest::get(format!("http://127.0.0.1:{}/api/system/status", b.port)).await.unwrap().json().await.unwrap();
+    assert_eq!(v["custom_hostname"], json!("from-file"));
+}

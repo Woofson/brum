@@ -1630,169 +1630,20 @@
             </div>
           </div>
 
-          <div data-nav-title="Machine Name Badge" class="settings-group-card">
+          <div data-nav-title="Machine Name Badge &amp; Login Page" class="settings-group-card" id="machine-display-admin-card" style="display: none;">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
-                <i data-lucide="server"></i> Machine Name Badge
+                <i data-lucide="server"></i> Machine Name Badge &amp; Login Page
               </h4>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 11px; color: var(--text-dim);">Live Preview:</span>
-                <span id="hostname-settings-preview-badge" class="header-hostname-badge color-slate style-text size-md" style="display: inline-flex;">
-                  <span id="hostname-preview-text">@localhost</span>
-                  <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
-                </span>
-              </div>
             </div>
-            <p class="settings-card-desc">A badge next to the Brum logo that shows which machine you are on (for example <code>@nas-prod</code>, <code>@homelab</code>, <code>@dev-box</code>).</p>
-
-            <label class="settings-checkbox-row">
-              <input type="checkbox" id="setting-show-hostname-badge" checked data-on-change="toggleHostnameBadgeSetting" data-change-args='[{"$": "checked"}]'>
-              <div>
-                <strong>Show the machine name badge</strong>
-                <div class="settings-field-hint">Next to the Brum logo in the header.</div>
-              </div>
-            </label>
-
-            <!-- Customizer controls container -->
-            <div id="wrapper-custom-hostname" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--border);">
-              <div class="settings-field">
-                <label class="settings-field-label" for="setting-custom-hostname-label">Text on the badge (optional):</label>
-                <input type="text" id="setting-custom-hostname-label" class="settings-input" style="font-family: var(--font-mono);" placeholder="Leave empty for auto-detected system hostname" data-on-input="handleHostnameSettingChange">
-                <div class="settings-field-hint">Empty shows the machine's own name. For example <code>@nas-prod</code>, <code>@homelab-01</code>, <code>@dev-box</code>).</div>
-              </div>
-
-              <div class="settings-grid-auto">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-color">Badge colour:</label>
-                  <select id="setting-hostname-color" class="settings-select" data-on-change="handleHostnameSettingChange">
-                    <option value="slate" selected>⚪ Slate / Dim Text (Default)</option>
-                    <option value="amber">🔶 Amber Accent</option>
-                    <option value="emerald">🟢 Emerald Green</option>
-                    <option value="sky">🔷 Sky Blue</option>
-                    <option value="purple">🟣 Purple</option>
-                    <option value="rose">🔴 Rose Red</option>
-                    <option value="orange">🟧 Orange</option>
-                    <option value="cyan">💠 Cyan</option>
-                    <option value="custom">🎨 Custom Free-form Color...</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-style">Style:</label>
-                  <select id="setting-hostname-style" class="settings-select" data-on-change="handleHostnameSettingChange">
-                    <option value="text" selected>Text (@machine, default)</option>
-                    <option value="subtle">Light badge</option>
-                    <option value="solid">Solid badge</option>
-                    <option value="outline">Outlined badge</option>
-                    <option value="pill">Rounded badge</option>
-                    <option value="glow">Glowing badge</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-icon">Icon:</label>
-                  <select id="setting-hostname-icon" class="settings-select" data-on-change="handleHostnameSettingChange">
-                    <option value="none" selected>🚫 No Icon (Text Only, Default)</option>
-                    <option value="server">🖥️ Server</option>
-                    <option value="hard-drive">💽 Hard Drive (NAS)</option>
-                    <option value="cpu">⚡ CPU / Compute</option>
-                    <option value="terminal">💻 Terminal / Dev</option>
-                    <option value="cloud">☁️ Cloud / VPS</option>
-                    <option value="shield">🛡️ Shield / Secure</option>
-                    <option value="box">📦 Container / Box</option>
-                    <option value="home">🏠 Homelab / Home</option>
-                    <option value="globe">🌐 Globe / Gateway</option>
-                    <option value="radio">📻 Radio / Remote</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-size">Text Size:</label>
-                  <select id="setting-hostname-size" class="settings-select" data-on-change="handleHostnameSettingChange">
-                    <option value="sm">Small (Compact 18px)</option>
-                    <option value="md" selected>Medium (Standard 22px)</option>
-                    <option value="lg">Large (Prominent 26px)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Custom Free-form Color Picker Sub-Card -->
-              <div id="hostname-custom-color-picker-row" style="display: none; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; flex-direction: column; gap: 10px;">
-                <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
-                  <span style="display: flex; align-items: center; gap: 5px;"><i data-lucide="palette" style="width: 14px; height: 14px;"></i> Custom Badge Colors (Free-form Hex / RGBA)</span>
-                  <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#f59e0b", "rgba(245, 158, 11, 0.15)", "rgba(245, 158, 11, 0.35)", "rgba(245, 158, 11, 0.4)"]'>Amber</button>
-                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#06b6d4", "rgba(6, 182, 212, 0.15)", "rgba(6, 182, 212, 0.35)", "rgba(6, 182, 212, 0.4)"]'>Cyan</button>
-                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#10b981", "rgba(16, 185, 129, 0.15)", "rgba(16, 185, 129, 0.35)", "rgba(16, 185, 129, 0.4)"]'>Emerald</button>
-                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#c084fc", "rgba(192, 132, 252, 0.15)", "rgba(192, 132, 252, 0.35)", "rgba(192, 132, 252, 0.4)"]'>Purple</button>
-                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#f43f5e", "rgba(244, 63, 94, 0.15)", "rgba(244, 63, 94, 0.35)", "rgba(244, 63, 94, 0.4)"]'>Rose</button>
-                  </div>
-                </div>
-
-                <div class="settings-grid-2col">
-                  <div class="settings-field">
-                    <label class="settings-field-label">Text and icon colour:</label>
-                    <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-text-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-text", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
-                      <input type="text" id="setting-hostname-custom-text" value="#f59e0b" placeholder="#f59e0b" data-on-input="handleHostnameSettingChange">
-                    </div>
-                  </div>
-
-                  <div class="settings-field">
-                    <label class="settings-field-label">Background colour:</label>
-                    <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-bg-picker" value="#261b0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-bg", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
-                      <input type="text" id="setting-hostname-custom-bg" value="rgba(245, 158, 11, 0.15)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
-                    </div>
-                  </div>
-
-                  <div class="settings-field">
-                    <label class="settings-field-label">Border colour:</label>
-                    <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-border-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-border", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
-                      <input type="text" id="setting-hostname-custom-border" value="rgba(245, 158, 11, 0.35)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
-                    </div>
-                  </div>
-
-                  <div class="settings-field">
-                    <label class="settings-field-label">Glow:</label>
-                    <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-glow-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-glow", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
-                      <input type="text" id="setting-hostname-custom-glow" value="rgba(245, 158, 11, 0.4)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <p class="settings-card-desc">The machine name badge in the header and the title on the login page belong to this machine, so everyone sees the same. As an admin you set them for everyone in Server Settings.</p>
+            <div>
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openAdminPanel"], ["openServerSettingsGroup", "display"]]' style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
+                <i data-lucide="external-link" style="width: 13px; height: 13px;"></i> Open Server Settings
+              </button>
             </div>
           </div>
 
-          <div data-nav-title="Login Screen" class="settings-group-card">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="shield"></i> Login Screen
-              </h4>
-            </div>
-            <p class="settings-card-desc">The title and the line under it on the sign-in and lock screens.</p>
-
-            <div class="settings-field">
-              <label class="settings-field-label" for="setting-custom-login-title">Title (optional):</label>
-              <input type="text" id="setting-custom-login-title" class="settings-input" placeholder="Brum (Default)" data-on-input="handleLoginBrandingSettingChange">
-              <div class="settings-field-hint">Defaults to <code>Brum</code> if left empty.</div>
-            </div>
-
-            <div class="settings-field" style="margin-top: 10px;">
-              <label class="settings-field-label" for="setting-custom-login-subtitle">Line under the title (optional):</label>
-              <input type="text" id="setting-custom-login-subtitle" class="settings-input" style="font-family: var(--font-mono);" placeholder="$hostname, running Brum" data-on-input="handleLoginBrandingSettingChange">
-              <div class="settings-field-hint">
-                You can use <code>$hostname</code>, <code>$ip</code>, <code>$os</code>, <code>$arch</code>, <code>$version</code>. Default: <code>$hostname, running Brum</code> (where Brum links to GitHub).
-              </div>
-            </div>
-
-            <div style="margin-top: 10px; padding: 10px 12px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius);">
-              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">Live Subtitle Preview:</div>
-              <div id="login-branding-subtitle-preview" style="font-size: 12px; color: var(--text-main); font-family: var(--font-mono);"></div>
-            </div>
-          </div>
 
           </div>
 

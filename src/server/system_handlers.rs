@@ -77,20 +77,31 @@ pub struct SystemStatusResponse {
     pub hostname_style: Option<String>,
     pub hostname_icon: Option<String>,
     pub hostname_size: Option<String>,
+    pub hostname_custom_text: Option<String>,
+    pub hostname_custom_bg: Option<String>,
+    pub hostname_custom_border: Option<String>,
+    pub hostname_custom_glow: Option<String>,
     pub window_title: Option<String>,
     pub login_title: Option<String>,
     pub login_subtitle_template: Option<String>,
 }
 
-pub async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let hostname = get_system_hostname();
-    let node_name = if !state.config.ui.hostname_badge.trim().is_empty() {
-        state.config.ui.hostname_badge.clone()
+/// This machine's name as people and other Fleet machines see it: the badge text from Server
+/// Settings (applies at once), else "Name of this machine", else the computer's own name
+pub fn machine_label(state: &AppState) -> String {
+    let badge = crate::server::settings_handlers::live_ui(state).hostname_badge;
+    if !badge.trim().is_empty() {
+        badge
     } else if !state.config.server.server_name.trim().is_empty() {
         state.config.server.server_name.clone()
     } else {
-        hostname.clone()
-    };
+        get_system_hostname()
+    }
+}
+
+pub async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let hostname = get_system_hostname();
+    let node_name = machine_label(&state);
 
     Json(serde_json::json!({
         "status": "ok",
@@ -126,19 +137,17 @@ pub async fn handle_system_status(State(state): State<AppState>, headers: Header
         String::new()
     };
     let hostname = get_system_hostname();
-    let custom_hostname = if !state.config.ui.hostname_badge.trim().is_empty() {
-        Some(state.config.ui.hostname_badge.clone())
+    // Applies as soon as an admin saves it in Server Settings (#196)
+    let ui = crate::server::settings_handlers::live_ui(&state);
+    let custom_hostname = if !ui.hostname_badge.trim().is_empty() {
+        Some(ui.hostname_badge.clone())
     } else if !state.config.server.server_name.trim().is_empty() {
         Some(state.config.server.server_name.clone())
     } else {
         None
     };
-
-    let window_title = if !state.config.ui.window_title.trim().is_empty() {
-        Some(state.config.ui.window_title.clone())
-    } else {
-        None
-    };
+    let some = |v: &str| if v.trim().is_empty() { None } else { Some(v.to_string()) };
+    let window_title = some(&ui.window_title);
 
     Json(SystemStatusResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -162,14 +171,18 @@ pub async fn handle_system_status(State(state): State<AppState>, headers: Header
             "Linux PAM + SQLite RBAC".to_string()
         },
         custom_hostname,
-        show_hostname_badge: state.config.ui.show_hostname_badge,
-        hostname_color: if !state.config.ui.hostname_color.trim().is_empty() { Some(state.config.ui.hostname_color.clone()) } else { None },
-        hostname_style: if !state.config.ui.hostname_style.trim().is_empty() { Some(state.config.ui.hostname_style.clone()) } else { None },
-        hostname_icon: if !state.config.ui.hostname_icon.trim().is_empty() { Some(state.config.ui.hostname_icon.clone()) } else { None },
-        hostname_size: if !state.config.ui.hostname_size.trim().is_empty() { Some(state.config.ui.hostname_size.clone()) } else { None },
+        show_hostname_badge: ui.show_hostname_badge,
+        hostname_color: some(&ui.hostname_color),
+        hostname_style: some(&ui.hostname_style),
+        hostname_icon: some(&ui.hostname_icon),
+        hostname_size: some(&ui.hostname_size),
+        hostname_custom_text: ui.hostname_custom_text.as_deref().and_then(some),
+        hostname_custom_bg: ui.hostname_custom_bg.as_deref().and_then(some),
+        hostname_custom_border: ui.hostname_custom_border.as_deref().and_then(some),
+        hostname_custom_glow: ui.hostname_custom_glow.as_deref().and_then(some),
         window_title,
-        login_title: state.config.ui.login_title.clone(),
-        login_subtitle_template: state.config.ui.login_subtitle_template.clone(),
+        login_title: ui.login_title.as_deref().and_then(some),
+        login_subtitle_template: ui.login_subtitle_template.as_deref().and_then(some),
     })
 }
 

@@ -19,13 +19,7 @@ fn bad(e: impl ToString) -> ApiError {
 
 /// This machine's name as other machines show it
 fn own_name(state: &AppState) -> String {
-    if !state.config.ui.hostname_badge.trim().is_empty() {
-        state.config.ui.hostname_badge.clone()
-    } else if !state.config.server.server_name.trim().is_empty() {
-        state.config.server.server_name.clone()
-    } else {
-        crate::server::system_handlers::get_system_hostname()
-    }
+    crate::server::system_handlers::machine_label(state)
 }
 
 /// An admin asks for a code to add a machine

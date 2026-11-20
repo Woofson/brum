@@ -1418,6 +1418,15 @@ pub struct UiConfig {
     pub login_title: Option<String>,
     #[serde(default)]
     pub login_subtitle_template: Option<String>,
+    /// Badge colours when hostname_color is "custom" (any CSS colour; empty = Brum's own)
+    #[serde(default)]
+    pub hostname_custom_text: Option<String>,
+    #[serde(default)]
+    pub hostname_custom_bg: Option<String>,
+    #[serde(default)]
+    pub hostname_custom_border: Option<String>,
+    #[serde(default)]
+    pub hostname_custom_glow: Option<String>,
 }
 
 impl Default for UiConfig {
@@ -1443,6 +1452,10 @@ impl Default for UiConfig {
             folder_color: None,
             login_title: None,
             login_subtitle_template: None,
+            hostname_custom_text: None,
+            hostname_custom_bg: None,
+            hostname_custom_border: None,
+            hostname_custom_glow: None,
         }
     }
 }

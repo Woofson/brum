@@ -51,6 +51,8 @@ pub enum Kind {
     Secret,
     /// The shared folders list (`[[storage.roots]]`)
     Roots,
+    /// A CSS colour (#f59e0b, rgb(...), rgba(...), hsl(...)), or empty for Brum's own
+    Color,
 }
 
 pub struct Spec {
@@ -145,8 +147,59 @@ pub const SPECS: &[Spec] = &[
     s("ui.show_hidden_files", Kind::Bool),
     s("ui.window_title", Kind::Text(128)),
     s("ui.login_title", Kind::OptText(128)),
+    s("ui.login_subtitle_template", Kind::OptText(160)),
     s("desktop.enable_tray", Kind::Bool),
+    // The machine name badge in the header (#196)
+    s("ui.show_hostname_badge", Kind::Bool),
+    s("ui.hostname_badge", Kind::Text(64)),
+    s("ui.hostname_color", Kind::Choice(&["slate", "amber", "emerald", "sky", "purple", "rose", "orange", "cyan", "custom"])),
+    s("ui.hostname_style", Kind::Choice(&["text", "subtle", "solid", "outline", "pill", "glow"])),
+    s("ui.hostname_icon", Kind::Choice(&["none", "server", "hard-drive", "cpu", "terminal", "cloud", "shield", "box", "home", "globe", "radio"])),
+    s("ui.hostname_size", Kind::Choice(&["sm", "md", "lg"])),
+    s("ui.hostname_custom_text", Kind::Color),
+    s("ui.hostname_custom_bg", Kind::Color),
+    s("ui.hostname_custom_border", Kind::Color),
+    s("ui.hostname_custom_glow", Kind::Color),
 ];
+
+/// Settings that only change how this machine is shown (the name badge, the login page, the
+/// browser tab title). Saving one of them takes effect at once, without a restart.
+pub const LIVE: &[&str] = &[
+    "ui.window_title",
+    "ui.login_title",
+    "ui.login_subtitle_template",
+    "ui.show_hostname_badge",
+    "ui.hostname_badge",
+    "ui.hostname_color",
+    "ui.hostname_style",
+    "ui.hostname_icon",
+    "ui.hostname_size",
+    "ui.hostname_custom_text",
+    "ui.hostname_custom_bg",
+    "ui.hostname_custom_border",
+    "ui.hostname_custom_glow",
+];
+
+pub fn is_live(key: &str) -> bool {
+    LIVE.contains(&key)
+}
+
+/// A colour the page can put in a style: #rgb, #rrggbb or #rrggbbaa, or rgb(), rgba(), hsl(),
+/// hsla() with numbers only. Anything else could break out of the style it is put in.
+fn check_color(s: &str) -> Result<(), String> {
+    let lower = s.to_ascii_lowercase();
+    let hex_ok = lower.strip_prefix('#').map_or(false, |h| matches!(h.len(), 3 | 4 | 6 | 8) && h.chars().all(|c| c.is_ascii_hexdigit()));
+    let func_ok = ["rgb(", "rgba(", "hsl(", "hsla("].iter().any(|f| {
+        lower.strip_prefix(f).and_then(|rest| rest.strip_suffix(')')).map_or(false, |inner| {
+            !inner.trim().is_empty() && inner.chars().all(|c| c.is_ascii_digit() || matches!(c, ' ' | ',' | '.' | '%' | '/'))
+        })
+    });
+    if hex_ok || func_ok {
+        Ok(())
+    } else {
+        Err("must be a colour like #f59e0b or rgba(245, 158, 11, 0.35)".into())
+    }
+}
 
 /// Settings that can only ever be set in `config.toml` (or the environment), with the reason
 pub const FILE_ONLY: &[(&str, &str)] = &[
@@ -375,6 +428,7 @@ pub fn describe(kind: Kind) -> Value {
         Kind::Roles => json!({ "type": "list", "of": "role" }),
         Kind::Secret => json!({ "type": "secret" }),
         Kind::Roots => json!({ "type": "folders" }),
+        Kind::Color => json!({ "type": "text", "max_length": 64, "optional": true, "of": "color" }),
     }
 }
 
@@ -507,6 +561,14 @@ pub fn validate(spec: &Spec, v: &Value) -> Result<Value, String> {
             Ok(Value::String(s.trim().to_string()))
         }
         Kind::Roots => validate_roots(v),
+        Kind::Color => {
+            let s = one_line(v, 64)?;
+            if s.is_empty() {
+                return Ok(Value::Null);
+            }
+            check_color(&s)?;
+            Ok(Value::String(s))
+        }
     }
 }
 
@@ -586,6 +648,12 @@ mod tests {
         // A misspelt key would be saved but silently do nothing
         let cfg = serde_json::to_value(AppConfig::default()).unwrap();
         for spec in SPECS {
+            if matches!(spec.kind, Kind::Color) {
+                // Empty by default: the field must still be one Brum knows
+                let (parent, field) = spec.key.rsplit_once('.').unwrap();
+                assert!(value_in(&cfg, parent).as_object().is_some_and(|o| o.contains_key(field)), "{} is not a setting Brum knows", spec.key);
+                continue;
+            }
             if matches!(spec.kind, Kind::Secret | Kind::OptText(_) | Kind::OptFolder) {
                 continue; // not serialized, or absent while unset
             }

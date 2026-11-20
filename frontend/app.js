@@ -105,7 +105,7 @@ const BRUM_ACTIONS = new Set([
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
   'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
-  'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset', 'applyPaneGlow',
+  'applyBatchTagField', 'applyBorderSettings', 'applyPaneGlow',
   'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
   'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
@@ -174,7 +174,7 @@ const BRUM_ACTIONS = new Set([
   'handleExtractModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
   'handleFleetNodesImport', 'handleFolderColorChange', 'handleFolderColorCustomChange',
   'handleFontSizeChange', 'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange',
-  'handleHexGridKey', 'handleHostnameSettingChange', 'handleLoginBrandingSettingChange',
+  'handleHexGridKey',
   'handleLoginSubmit', 'handleLogoutOrExit', 'handleLogViewerFilterInput',
   'handleMediaScrubberHover', 'handleMonoFontChange', 'handleNoteAttachmentFileSelected',
   'handleNotesInput', 'handleNotesKeyDown', 'handleNotesSearch', 'handleNotesTitleChange',
@@ -297,7 +297,7 @@ const BRUM_ACTIONS = new Set([
   'toggleFKeyBar', 'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility',
   'toggleFloatingTaskManager', 'toggleFolderTree', 'toggleGlobalDotfiles',
   'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
-  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleImageViewerFloating',
+  'toggleHideDrive', 'toggleImageViewerFloating',
   'toggleImgTransformDropdown', 'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow',
   'toggleLogViewerInvert', 'toggleMaximizeCadStudio', 'toggleMaximizeDiff',
   'toggleMaximizeDuplicateFinder', 'toggleMaximizeDynamicChewToy', 'toggleMaximizeHexEditor',
@@ -2356,21 +2356,9 @@ function getAllUserPreferences() {
     // 2b. Region & formats
     region: brumRegion(),
 
-    // 3. Hostname Badge & Window Title
-    show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
+    // 3. Window title (the machine name badge and login page belong to the machine: Server Settings, #196)
     notes_show_manuals: localStorage.getItem('cd_notes_show_manuals') !== 'false',
-    custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
     custom_app_title: localStorage.getItem('cd_custom_app_title') || '',
-    login_title: localStorage.getItem('cd_login_title') || '',
-    login_subtitle_template: localStorage.getItem('cd_login_subtitle_template') || '',
-    hostname_color: localStorage.getItem('cd_hostname_color') || 'slate',
-    hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#94a3b8',
-    hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(148, 163, 184, 0.12)',
-    hostname_custom_border: localStorage.getItem('cd_hostname_custom_border') || 'rgba(148, 163, 184, 0.3)',
-    hostname_custom_glow: localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.35)',
-    hostname_style: localStorage.getItem('cd_hostname_style') || 'text',
-    hostname_icon: localStorage.getItem('cd_hostname_icon') || 'none',
-    hostname_size: localStorage.getItem('cd_hostname_size') || 'md',
     font_sans: localStorage.getItem('cd_font_sans') || 'default',
     font_mono: localStorage.getItem('cd_font_mono') || 'default',
     font_weight: localStorage.getItem('cd_font_weight') || 'default',
@@ -2626,44 +2614,21 @@ function applyAllUserPreferences(prefs) {
     updateAppDocumentTitle();
   }
 
-  // 9. Hostname Badge Customizer & Window Title
-  if (prefs.show_hostname_badge !== undefined) {
-    localStorage.setItem('cd_show_hostname_badge', prefs.show_hostname_badge ? 'true' : 'false');
-  }
+  // 9. Window Title (machine name badge and login page: Server Settings, #196)
   if (prefs.notes_show_manuals === undefined && prefs.notedog_show_manuals !== undefined) {
     prefs.notes_show_manuals = prefs.notedog_show_manuals;
   }
   if (prefs.notes_show_manuals !== undefined) {
     localStorage.setItem('cd_notes_show_manuals', prefs.notes_show_manuals ? 'true' : 'false');
   }
-  if (prefs.custom_hostname !== undefined) {
-    if (prefs.custom_hostname) localStorage.setItem('cd_custom_hostname', prefs.custom_hostname);
-    else localStorage.removeItem('cd_custom_hostname');
-  }
   if (prefs.custom_app_title !== undefined) {
     if (prefs.custom_app_title) localStorage.setItem('cd_custom_app_title', prefs.custom_app_title);
     else localStorage.removeItem('cd_custom_app_title');
     if (typeof updateAppDocumentTitle === 'function') updateAppDocumentTitle();
   }
-  if (prefs.login_title !== undefined) {
-    if (prefs.login_title) localStorage.setItem('cd_login_title', prefs.login_title);
-    else localStorage.removeItem('cd_login_title');
-  }
-  if (prefs.login_subtitle_template !== undefined) {
-    if (prefs.login_subtitle_template) localStorage.setItem('cd_login_subtitle_template', prefs.login_subtitle_template);
-    else localStorage.removeItem('cd_login_subtitle_template');
-  }
   if (typeof renderLoginBranding === 'function') {
     renderLoginBranding();
   }
-  if (prefs.hostname_color) localStorage.setItem('cd_hostname_color', prefs.hostname_color);
-  if (prefs.hostname_custom_text) localStorage.setItem('cd_hostname_custom_text', prefs.hostname_custom_text);
-  if (prefs.hostname_custom_bg) localStorage.setItem('cd_hostname_custom_bg', prefs.hostname_custom_bg);
-  if (prefs.hostname_custom_border) localStorage.setItem('cd_hostname_custom_border', prefs.hostname_custom_border);
-  if (prefs.hostname_custom_glow) localStorage.setItem('cd_hostname_custom_glow', prefs.hostname_custom_glow);
-  if (prefs.hostname_style) localStorage.setItem('cd_hostname_style', prefs.hostname_style);
-  if (prefs.hostname_icon) localStorage.setItem('cd_hostname_icon', prefs.hostname_icon);
-  if (prefs.hostname_size) localStorage.setItem('cd_hostname_size', prefs.hostname_size);
   if (prefs.font_sans) localStorage.setItem('cd_font_sans', prefs.font_sans);
   if (prefs.font_mono) localStorage.setItem('cd_font_mono', prefs.font_mono);
   if (prefs.font_weight) localStorage.setItem('cd_font_weight', prefs.font_weight);
@@ -2898,6 +2863,41 @@ function applyAllUserPreferences(prefs) {
   }
 }
 
+// The machine name badge and login page belong to the machine (Admin → Server Settings, #196).
+// Older versions kept them as personal settings, in the browser and in the server copy.
+const MACHINE_DISPLAY_PREF_KEYS = [
+  'show_hostname_badge', 'custom_hostname', 'login_title', 'login_subtitle_template',
+  'hostname_color', 'hostname_custom_text', 'hostname_custom_bg', 'hostname_custom_border',
+  'hostname_custom_glow', 'hostname_style', 'hostname_icon', 'hostname_size',
+];
+
+function forgetPersonalMachineDisplay() {
+  try {
+    MACHINE_DISPLAY_PREF_KEYS.forEach(k => localStorage.removeItem('cd_' + k));
+  } catch (_) {}
+}
+forgetPersonalMachineDisplay();
+
+// The machine's own badge and login page as last seen, so they show at once on the next visit.
+// Only a picture of the machine's settings: never sent anywhere, replaced on every page load.
+const MACHINE_DISPLAY_FIELDS = [
+  'custom_hostname', 'show_hostname_badge', 'hostname_color', 'hostname_style', 'hostname_icon',
+  'hostname_size', 'hostname_custom_text', 'hostname_custom_bg', 'hostname_custom_border',
+  'hostname_custom_glow', 'window_title', 'login_title', 'login_subtitle_template', 'hostname',
+];
+
+function rememberMachineDisplay(sysData) {
+  if (!sysData) return;
+  const keep = {};
+  MACHINE_DISPLAY_FIELDS.forEach(f => { if (sysData[f] !== undefined && sysData[f] !== null) keep[f] = sysData[f]; });
+  try { localStorage.setItem('cd_machine_display', JSON.stringify(keep)); } catch (_) {}
+}
+
+function machineDisplay() {
+  if (App.systemStatus) return App.systemStatus;
+  try { return JSON.parse(localStorage.getItem('cd_machine_display') || '{}') || {}; } catch (_) { return {}; }
+}
+
 async function loadUserPreferencesFromServer() {
   try {
     const headers = {};
@@ -2925,6 +2925,13 @@ async function loadUserPreferencesFromServer() {
     _prefsBaseline = snapshotUserPreferences();
     _serverPrefsLoaded = true;
     _prefsSaveAllowed = true;
+    // Older versions kept the machine name badge and login page in personal settings: remove
+    // them from the server copy too, so an old machine name can never come back (#196)
+    const stale = MACHINE_DISPLAY_PREF_KEYS.filter(k => Object.prototype.hasOwnProperty.call(prefs, k));
+    if (stale.length) {
+      stale.forEach(k => { _prefsBaseline[k] = prefs[k]; });
+      queueSaveUserPreferencesToServer();
+    }
   } catch (e) {
     console.warn('Could not load user preferences from server:', e);
     allowSavingChangesOnly();
@@ -3455,7 +3462,7 @@ async function checkAuthAndLoad() {
       sysData = await sysResp.json();
       App.systemStatus = sysData;
       if (sysData.hostname) localStorage.setItem('cd_cached_hostname', sysData.hostname);
-      if (sysData.custom_hostname) localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
+      rememberMachineDisplay(sysData);
       if (sysData.version) applyAppVersion(sysData.version, sysData);
       updateHostnameBadge();
       App.isStandalone = !!sysData.standalone;
@@ -3598,9 +3605,7 @@ async function fetchAppVersion() {
       if (data.hostname) {
         localStorage.setItem('cd_cached_hostname', data.hostname);
       }
-      if (data.custom_hostname) {
-        localStorage.setItem('cd_custom_hostname', data.custom_hostname);
-      }
+      rememberMachineDisplay(data);
       if (data.version) applyAppVersion(data.version, data);
       updateHostnameBadge();
     }
@@ -3680,8 +3685,7 @@ function getAppBaseTitle() {
   const customTemplate = localStorage.getItem('cd_title_template')
     || localStorage.getItem('cd_custom_app_title')
     || App.config?.ui?.document_title_template
-    || App.config?.ui?.window_title
-    || App.systemStatus?.window_title;
+    || machineDisplay().window_title; // the machine's own, from Server Settings (applies at once)
 
   const activePane = App.panes && App.panes[App.activePaneIndex || 0];
   const activePath = activePane?.path || '/';
@@ -3764,40 +3768,18 @@ function resetWindowTitleSetting() {
 }
 
 function getHostnameBadgeSettings() {
-  const savedShow = localStorage.getItem('cd_show_hostname_badge');
-  const show = savedShow !== null 
-    ? (savedShow === 'true') 
-    : (App.systemStatus?.show_hostname_badge !== false && App.config?.ui?.show_hostname_badge !== false);
-
-  const savedCustom = localStorage.getItem('cd_custom_hostname');
-  const customLabel = (savedCustom && savedCustom.trim()) 
-    || App.config?.ui?.hostname_badge 
-    || App.systemStatus?.custom_hostname;
-
-  const color = localStorage.getItem('cd_hostname_color')
-    || App.config?.ui?.hostname_color
-    || App.systemStatus?.hostname_color
-    || 'slate';
-
-  const customText = localStorage.getItem('cd_hostname_custom_text') || '#94a3b8';
-  const customBg = localStorage.getItem('cd_hostname_custom_bg') || 'rgba(148, 163, 184, 0.12)';
-  const customBorder = localStorage.getItem('cd_hostname_custom_border') || 'rgba(148, 163, 184, 0.3)';
-  const customGlow = localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.35)';
-
-  const style = localStorage.getItem('cd_hostname_style')
-    || App.config?.ui?.hostname_style
-    || App.systemStatus?.hostname_style
-    || 'text';
-
-  const icon = localStorage.getItem('cd_hostname_icon')
-    || App.config?.ui?.hostname_icon
-    || App.systemStatus?.hostname_icon
-    || 'none';
-
-  const size = localStorage.getItem('cd_hostname_size')
-    || App.config?.ui?.hostname_size
-    || App.systemStatus?.hostname_size
-    || 'md';
+  // The machine's own settings (Admin → Server Settings), the same for everyone (#196)
+  const m = machineDisplay();
+  const show = m.show_hostname_badge !== false;
+  const customLabel = m.custom_hostname || '';
+  const color = m.hostname_color || 'slate';
+  const customText = m.hostname_custom_text || '#94a3b8';
+  const customBg = m.hostname_custom_bg || 'rgba(148, 163, 184, 0.12)';
+  const customBorder = m.hostname_custom_border || 'rgba(148, 163, 184, 0.3)';
+  const customGlow = m.hostname_custom_glow || 'rgba(245, 158, 11, 0.35)';
+  const style = m.hostname_style || 'text';
+  const icon = m.hostname_icon || 'none';
+  const size = m.hostname_size || 'md';
 
   const cachedHost = localStorage.getItem('cd_cached_hostname');
   const rawHostname = (customLabel && customLabel.trim().length > 0)
@@ -3909,20 +3891,13 @@ function updateHostnameBadge() {
     const user = App.user?.username || App.systemStatus?.current_user || 'user';
     badge.title = `Host: ${cfg.rawHostname} (${os}/${arch})\nUser: ${user}\nClick to switch server / manage fleet`;
   }
-
-  updateHostnameSettingsPreview();
 }
 
 function getLoginBrandingSettings() {
-  const customTitle = localStorage.getItem('cd_login_title')
-    || App.config?.ui?.login_title
-    || App.systemStatus?.login_title
-    || '';
-
-  const customSubtitleTpl = localStorage.getItem('cd_login_subtitle_template')
-    || App.config?.ui?.login_subtitle_template
-    || App.systemStatus?.login_subtitle_template
-    || '$hostname, running Brum';
+  // The machine's own login page (Admin → Server Settings), shown before anyone signs in (#196)
+  const m = machineDisplay();
+  const customTitle = m.login_title || '';
+  const customSubtitleTpl = m.login_subtitle_template || '$hostname, running Brum';
 
   return {
     title: customTitle.trim() ? customTitle.trim() : 'Brum',
@@ -4061,114 +4036,6 @@ function renderLoginBranding() {
   }
 
   randomizeBrumMascot(document.getElementById('login-brand-logo'));
-  updateLoginBrandingSettingsPreview();
-}
-
-function updateLoginBrandingSettingsPreview() {
-  const previewEl = document.getElementById('login-branding-subtitle-preview');
-  const subInput = document.getElementById('setting-custom-login-subtitle');
-  if (!previewEl) return;
-
-  const tpl = subInput?.value?.trim() || '$hostname, running Brum';
-  const interpolated = interpolateLoginTemplate(tpl);
-  const safeEscaped = typeof escapeHtml === 'function' ? escapeHtml(interpolated) : interpolated;
-  const withGhLink = safeEscaped.replace(/\bBrum\b/g, '<a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" class="auth-stealth-link" title="Brum on GitHub">Brum</a>');
-  previewEl.innerHTML = withGhLink;
-}
-
-function handleLoginBrandingSettingChange() {
-  const titleInput = document.getElementById('setting-custom-login-title');
-  const subInput = document.getElementById('setting-custom-login-subtitle');
-
-  if (titleInput) {
-    const val = titleInput.value.trim();
-    if (val) localStorage.setItem('cd_login_title', val);
-    else localStorage.removeItem('cd_login_title');
-  }
-
-  if (subInput) {
-    const val = subInput.value.trim();
-    if (val) localStorage.setItem('cd_login_subtitle_template', val);
-    else localStorage.removeItem('cd_login_subtitle_template');
-  }
-
-  renderLoginBranding();
-  if (typeof queueSaveUserPreferencesToServer === 'function') {
-    queueSaveUserPreferencesToServer();
-  }
-}
-
-function updateHostnameSettingsPreview() {
-  const previewBadge = document.getElementById('hostname-settings-preview-badge');
-  const previewText = document.getElementById('hostname-preview-text');
-  const customColorRow = document.getElementById('hostname-custom-color-picker-row');
-  if (!previewBadge) return;
-
-  const cfg = getHostnameBadgeSettings();
-  renderHostnameBadgeElement(previewBadge, previewText, cfg);
-
-  if (cfg.color === 'custom') {
-    if (customColorRow) customColorRow.style.display = 'flex';
-  } else {
-    if (customColorRow) customColorRow.style.display = 'none';
-  }
-}
-
-function handleHostnameSettingChange() {
-  const labelInput = document.getElementById('setting-custom-hostname-label');
-  const colorSelect = document.getElementById('setting-hostname-color');
-  const styleSelect = document.getElementById('setting-hostname-style');
-  const iconSelect = document.getElementById('setting-hostname-icon');
-  const sizeSelect = document.getElementById('setting-hostname-size');
-
-  const customTextInput = document.getElementById('setting-hostname-custom-text');
-  const customBgInput = document.getElementById('setting-hostname-custom-bg');
-  const customBorderInput = document.getElementById('setting-hostname-custom-border');
-  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
-
-  if (labelInput) {
-    const val = labelInput.value.trim();
-    if (val) localStorage.setItem('cd_custom_hostname', val);
-    else localStorage.removeItem('cd_custom_hostname');
-  }
-
-  if (colorSelect) localStorage.setItem('cd_hostname_color', colorSelect.value);
-  if (styleSelect) localStorage.setItem('cd_hostname_style', styleSelect.value);
-  if (iconSelect) localStorage.setItem('cd_hostname_icon', iconSelect.value);
-  if (sizeSelect) localStorage.setItem('cd_hostname_size', sizeSelect.value);
-
-  if (customTextInput && customTextInput.value) localStorage.setItem('cd_hostname_custom_text', customTextInput.value);
-  if (customBgInput && customBgInput.value) localStorage.setItem('cd_hostname_custom_bg', customBgInput.value);
-  if (customBorderInput && customBorderInput.value) localStorage.setItem('cd_hostname_custom_border', customBorderInput.value);
-  if (customGlowInput && customGlowInput.value) localStorage.setItem('cd_hostname_custom_glow', customGlowInput.value);
-
-  updateHostnameBadge();
-  queueSaveUserPreferencesToServer();
-}
-
-function applyCustomBadgePreset(text, bg, border, glow) {
-  const customTextInput = document.getElementById('setting-hostname-custom-text');
-  const customBgInput = document.getElementById('setting-hostname-custom-bg');
-  const customBorderInput = document.getElementById('setting-hostname-custom-border');
-  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
-
-  const textPicker = document.getElementById('setting-hostname-custom-text-picker');
-  const borderPicker = document.getElementById('setting-hostname-custom-border-picker');
-  const glowPicker = document.getElementById('setting-hostname-custom-glow-picker');
-
-  if (customTextInput) customTextInput.value = text;
-  if (customBgInput) customBgInput.value = bg;
-  if (customBorderInput) customBorderInput.value = border;
-  if (customGlowInput) customGlowInput.value = glow;
-
-  if (textPicker && text.startsWith('#')) textPicker.value = text;
-  if (borderPicker && border.startsWith('#')) borderPicker.value = border;
-  if (glowPicker && glow.startsWith('#')) glowPicker.value = glow;
-
-  const colorSelect = document.getElementById('setting-hostname-color');
-  if (colorSelect) colorSelect.value = 'custom';
-
-  handleHostnameSettingChange();
 }
 
 function copyHostnameBadge() {
@@ -4179,18 +4046,6 @@ function copyHostnameBadge() {
   
   const textToCopy = `${user}@${cfg.hostname} [${os}/${arch}]`;
   copyTextToClipboard(textToCopy, `Host info copied to clipboard: ${textToCopy}`);
-}
-
-function toggleHostnameBadgeSetting(enabled) {
-  localStorage.setItem('cd_show_hostname_badge', enabled);
-  const wrapper = document.getElementById('wrapper-custom-hostname');
-  if (wrapper) wrapper.style.display = enabled ? 'flex' : 'none';
-  updateHostnameBadge();
-  showToast(enabled ? 'Hostname badge enabled in top header' : 'Hostname badge hidden', 'info');
-}
-
-function saveCustomHostnameSetting(val) {
-  handleHostnameSettingChange();
 }
 
 async function loadConfig() {
@@ -10601,8 +10456,10 @@ const SS_GROUPS = [
     keys: ['terminal.enabled', 'terminal.allow_roles', 'terminal.allow_virtual_users', 'terminal.drop_privileges'] },
   { id: 'chewtoys', icon: 'puzzle', title: 'Chewtoys', desc: 'Small add-on apps that run inside Brum.',
     keys: ['plugins.enabled', 'plugins.allow_user_installs', 'plugins.default_policy', 'plugins.global_whitelist', 'plugins.global_blacklist'] },
+  { id: 'display', icon: 'badge', title: 'Machine Name Badge & Login Page', desc: 'How this machine shows itself to everyone: the badge next to the Brum logo, and the login and lock screens. Saved changes show straight away, without a restart.',
+    keys: ['ui.show_hostname_badge', 'ui.hostname_badge', 'ui.hostname_color', 'ui.hostname_style', 'ui.hostname_icon', 'ui.hostname_size', 'ui.hostname_custom_text', 'ui.hostname_custom_bg', 'ui.hostname_custom_border', 'ui.hostname_custom_glow', 'ui.login_title', 'ui.login_subtitle_template'] },
   { id: 'start', icon: 'layout-dashboard', title: 'Defaults for New Users', desc: 'How Brum looks for someone who has not changed their own Settings yet.',
-    keys: ['ui.default_layout', 'ui.default_pane_count', 'ui.default_view_mode', 'ui.show_hidden_files', 'ui.window_title', 'ui.login_title', 'desktop.enable_tray'] },
+    keys: ['ui.default_layout', 'ui.default_pane_count', 'ui.default_view_mode', 'ui.show_hidden_files', 'ui.window_title', 'desktop.enable_tray'] },
   { id: 'services', icon: 'plug', title: 'Other Services', desc: 'Programs and services Brum works together with.',
     keys: ['syncthing.enabled', 'syncthing.url', 'syncthing.api_key', 'proton.allow_download', 'rclone.allow_download', 'notes.notes_folder'] },
   { id: 'logs', icon: 'scroll-text', title: 'Logs & Records', desc: 'What Brum writes down about itself and about who did what.',
@@ -10670,8 +10527,19 @@ const SS_TEXT = {
   'ui.default_pane_count': { label: 'Number of panels', help: 'From 1 to 4.' },
   'ui.default_view_mode': { label: 'How files are listed', choices: { details: 'Details', compact: 'Compact', grid: 'Big icons' } },
   'ui.show_hidden_files': { label: 'Show hidden files', help: 'Files whose names start with a dot.' },
-  'ui.window_title': { label: 'Browser tab title', help: 'Empty uses Brum\'s own.' },
-  'ui.login_title': { label: 'Login page title', help: 'Empty uses Brum\'s own.' },
+  'ui.window_title': { label: 'Browser tab title', help: 'For people who have not chosen their own in Settings → Appearance. Empty uses Brum\'s own.' },
+  'ui.show_hostname_badge': { label: 'Show the machine name badge', help: 'Next to the Brum logo in the header, so everyone can see which machine they are on.' },
+  'ui.hostname_badge': { label: 'Text on the badge', help: 'For example nas-prod or homelab. Empty uses "Name of this machine" from Network & Access, or else the computer\'s own name.' },
+  'ui.hostname_color': { label: 'Badge colour', choices: { slate: 'Grey, dimmed (Brum\'s own)', amber: 'Amber', emerald: 'Green', sky: 'Blue', purple: 'Purple', rose: 'Red', orange: 'Orange', cyan: 'Cyan', custom: 'My own colours (below)' } },
+  'ui.hostname_style': { label: 'Badge style', choices: { text: 'Text only, like @machine (Brum\'s own)', subtle: 'Light badge', solid: 'Solid badge', outline: 'Outlined badge', pill: 'Rounded badge', glow: 'Glowing badge' } },
+  'ui.hostname_icon': { label: 'Badge icon', choices: { none: 'No icon (Brum\'s own)', server: 'Server', 'hard-drive': 'Hard drive (NAS)', cpu: 'Processor', terminal: 'Terminal', cloud: 'Cloud', shield: 'Shield', box: 'Container', home: 'Home', globe: 'Globe', radio: 'Radio' } },
+  'ui.hostname_size': { label: 'Badge size', choices: { sm: 'Small', md: 'Medium (Brum\'s own)', lg: 'Large' } },
+  'ui.hostname_custom_text': { label: 'Own colour: text', help: 'Only with "My own colours". A colour like #f59e0b or rgba(245, 158, 11, 0.9). Empty uses Brum\'s own.' },
+  'ui.hostname_custom_bg': { label: 'Own colour: background', help: 'Only with "My own colours", for the badge styles with a background. Like rgba(245, 158, 11, 0.12).' },
+  'ui.hostname_custom_border': { label: 'Own colour: border', help: 'Only with "My own colours", for the badge styles with a border. Like rgba(245, 158, 11, 0.3).' },
+  'ui.hostname_custom_glow': { label: 'Own colour: glow', help: 'Only with "My own colours" and the glowing style. Like rgba(245, 158, 11, 0.35).' },
+  'ui.login_title': { label: 'Login page title', help: 'The big title on the login and lock screens. Empty shows Brum.' },
+  'ui.login_subtitle_template': { label: 'Line under the login title', help: 'You can use $hostname, $ip, $os, $arch and $version. Empty shows "$hostname, running Brum".' },
   'desktop.enable_tray': { label: 'Icon next to the clock', help: 'Windows and Linux desktops: a Brum icon in the system tray.' },
   'syncthing.enabled': { label: 'Use Syncthing', help: 'Shows Syncthing folders and status in Brum.' },
   'syncthing.url': { label: 'Syncthing address', help: 'Usually http://127.0.0.1:8384' },
@@ -11018,7 +10886,23 @@ async function ssSave() {
   }
   SS.pendingNetwork = data.network_change || SS.pendingNetwork || null;
   showToast(data.restart_needed ? 'Saved. The changes take effect when Brum restarts.' : (data.message || 'Saved.'), 'success');
+  // The name badge, login page and tab title apply at once: show them here straight away (#196)
+  if (Object.keys(changes).some(k => SS_LIVE_KEYS.has(k))) await refreshMachineDisplay();
   await loadServerSettings();
+}
+
+const SS_LIVE_KEYS = new Set(['ui.window_title', ...SS_GROUPS.find(g => g.id === 'display').keys]);
+
+async function refreshMachineDisplay() {
+  try {
+    const resp = await fetch('/api/system/status');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    App.systemStatus = data;
+    rememberMachineDisplay(data);
+    updateHostnameBadge();
+    if (typeof updateAppDocumentTitle === 'function') updateAppDocumentTitle();
+  } catch (_) {}
 }
 
 async function ssRestart() {
@@ -26762,63 +26646,14 @@ function openSettingsModal() {
     globalRefreshCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.ui?.show_global_refresh === true);
   }
 
-  const hostnameBadgeCheckbox = document.getElementById('setting-show-hostname-badge');
-  if (hostnameBadgeCheckbox) {
-    const saved = localStorage.getItem('cd_show_hostname_badge');
-    const isShown = saved !== null 
-      ? (saved === 'true') 
-      : (App.systemStatus?.show_hostname_badge !== false && App.config?.ui?.show_hostname_badge !== false);
-    hostnameBadgeCheckbox.checked = isShown;
-    const wrapper = document.getElementById('wrapper-custom-hostname');
-    if (wrapper) wrapper.style.display = isShown ? 'flex' : 'none';
-  }
-
-  const cfg = getHostnameBadgeSettings();
-  const customHostnameInput = document.getElementById('setting-custom-hostname-label');
-  if (customHostnameInput) customHostnameInput.value = localStorage.getItem('cd_custom_hostname') || App.config?.ui?.hostname_badge || App.systemStatus?.custom_hostname || '';
-  const colorSelect = document.getElementById('setting-hostname-color');
-  if (colorSelect) colorSelect.value = cfg.color;
-  const styleSelect = document.getElementById('setting-hostname-style');
-  if (styleSelect) styleSelect.value = cfg.style;
-  const iconSelect = document.getElementById('setting-hostname-icon');
-  if (iconSelect) iconSelect.value = cfg.icon;
-  const sizeSelect = document.getElementById('setting-hostname-size');
-  if (sizeSelect) sizeSelect.value = cfg.size;
-
-  const customTextInput = document.getElementById('setting-hostname-custom-text');
-  if (customTextInput) customTextInput.value = cfg.customText;
-  const customBgInput = document.getElementById('setting-hostname-custom-bg');
-  if (customBgInput) customBgInput.value = cfg.customBg;
-  const customBorderInput = document.getElementById('setting-hostname-custom-border');
-  if (customBorderInput) customBorderInput.value = cfg.customBorder;
-  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
-  if (customGlowInput) customGlowInput.value = cfg.customGlow;
-
-  const textPicker = document.getElementById('setting-hostname-custom-text-picker');
-  if (textPicker && cfg.customText?.startsWith('#')) textPicker.value = cfg.customText;
-  const borderPicker = document.getElementById('setting-hostname-custom-border-picker');
-  if (borderPicker && cfg.customBorder?.startsWith('#')) borderPicker.value = cfg.customBorder;
-  const glowPicker = document.getElementById('setting-hostname-custom-glow-picker');
-  if (glowPicker && cfg.customGlow?.startsWith('#')) glowPicker.value = cfg.customGlow;
-
-  updateHostnameSettingsPreview();
-
   const customTitleInput = document.getElementById('setting-custom-window-title');
   if (customTitleInput) {
     customTitleInput.value = localStorage.getItem('cd_custom_app_title') || App.config?.ui?.window_title || App.systemStatus?.window_title || '';
   }
 
-  const customLoginTitleInput = document.getElementById('setting-custom-login-title');
-  if (customLoginTitleInput) {
-    customLoginTitleInput.value = localStorage.getItem('cd_login_title') || App.config?.ui?.login_title || App.systemStatus?.login_title || '';
-  }
-
-  const customLoginSubtitleInput = document.getElementById('setting-custom-login-subtitle');
-  if (customLoginSubtitleInput) {
-    customLoginSubtitleInput.value = localStorage.getItem('cd_login_subtitle_template') || App.config?.ui?.login_subtitle_template || App.systemStatus?.login_subtitle_template || '';
-  }
-
-  updateLoginBrandingSettingsPreview();
+  // Admins get a note pointing to where the machine name badge and login page are set (#196)
+  const machineDisplayCard = document.getElementById('machine-display-admin-card');
+  if (machineDisplayCard) machineDisplayCard.style.display = isAdminUser() || App.isStandalone ? '' : 'none';
 
   const notesFolderInput = document.getElementById('setting-notes-folder');
   if (notesFolderInput) {

@@ -35,7 +35,7 @@ A few things to know:
 
 - **A brand-new Brum, or a new account, starts from the browser's copy.** The first time a browser signs in and the machine has nothing saved for you yet, the browser's copy becomes the machine's copy. That is why a theme or name from an older Brum at the same address can come back after a fresh install.
 - **Each Fleet machine keeps its own copy.** Settings made on one machine do not follow you to another machine in the Fleet.
-- **The name badge, the app title and the login page title are saved as your own settings for now**, not as the machine's. They will move to Server Settings later.
+- **The machine name badge and the login page are not your own settings.** They belong to the machine, so everyone sees the same, in every browser. Admins set them in **Admin → Server Settings → Machine Name Badge & Login Page**.
 
 #### Starting over with default settings
 
@@ -55,7 +55,7 @@ Open the **Admin Control Panel** (avatar menu) → **Server Settings**.
 
 * **Groups**: the settings are grouped as *Network & Access*, *Sign-in*, *Single Sign-On*, *Folders*, *Fleet*, *Terminal*, *Chewtoys*, *Defaults for New Users*, *Other Services* and *Logs & Records*. Every setting says what it does. **Find a setting…** searches all of them.
 * **Changing**: switches, choices in words, a folder picker for folders, and a list editor for shared folders. Changes collect in a bar at the bottom with **Undo** and **Save**. Values are checked before anything is saved: a folder that does not exist, a port that cannot work or a badly written address is refused with a plain message, and nothing is saved.
-* **When changes apply**: when Brum restarts. Saved changes are marked **After restart**, and **Restart Brum now** restarts it from the page (copies and other tasks in progress are interrupted).
+* **When changes apply**: when Brum restarts. Saved changes are marked **After restart**, and **Restart Brum now** restarts it from the page (copies and other tasks in progress are interrupted). The machine name badge, the login page and the browser tab title are the exception: they show as soon as they are saved.
 * **Badges**:
   * **In config.toml** (lock): set in the file, which wins. Change it there, or remove it from the file to change it here.
   * **BRUM_…** (lock): set by that environment variable, which wins.
@@ -264,9 +264,24 @@ On Linux, `sudo` does not work in the terminal of the Brum service, on purpose. 
 | Number of panels | `[ui]` `default_pane_count` | `2` |
 | How files are listed | `[ui]` `default_view_mode` | Details (`details`) |
 | Show hidden files | `[ui]` `show_hidden_files` | on |
-| Browser tab title | `[ui]` `window_title` | empty |
-| Login page title | `[ui]` `login_title` | empty (Brum's own) |
+| Browser tab title (for people who have not chosen their own) | `[ui]` `window_title` | empty |
 | Icon next to the clock | `[desktop]` `enable_tray` | on |
+
+### Machine Name Badge & Login Page
+
+How this machine shows itself to everyone. These apply as soon as they are saved, without a restart.
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Show the machine name badge | `[ui]` `show_hostname_badge` | on |
+| Text on the badge | `[ui]` `hostname_badge` | empty ("Name of this machine", else the computer's own name) |
+| Badge colour | `[ui]` `hostname_color` | grey (`slate`); `custom` uses the four colours below |
+| Badge style | `[ui]` `hostname_style` | text only (`text`) |
+| Badge icon | `[ui]` `hostname_icon` | none (`none`) |
+| Badge size | `[ui]` `hostname_size` | medium (`md`) |
+| Own colours: text, background, border, glow | `[ui]` `hostname_custom_text`, `hostname_custom_bg`, `hostname_custom_border`, `hostname_custom_glow` | empty (Brum's own); a colour like `#f59e0b` or `rgba(245, 158, 11, 0.35)` |
+| Login page title | `[ui]` `login_title` | empty (Brum's own) |
+| Line under the login title | `[ui]` `login_subtitle_template` | empty (`$hostname, running Brum`); can use `$hostname`, `$ip`, `$os`, `$arch`, `$version` |
 
 ### Other services
 
