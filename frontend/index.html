@@ -1129,22 +1129,41 @@
               <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" data-on-input="renderAvatarById" data-input-args='["settings-account-avatar-preview", {"$": "value"}]'>
             </div>
 
-            <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-new-pass">New password (leave empty to keep the current one):</label>
-                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current" autocomplete="new-password">
-              </div>
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-confirm-pass">New password again:</label>
-                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password" autocomplete="new-password">
-              </div>
-            </div>
-
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
               <span id="settings-profile-save-status" style="font-size: 12px; font-weight: 600; display: none;"></span>
               <button type="button" class="btn btn-accent" data-on-click="saveSettingsUserProfile"><i data-lucide="save"></i> Save profile</button>
             </div>
           </div>
+
+            <div data-nav-title="Password" class="settings-group-card web-only-setting server-only-setting" id="settings-password-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="key-round"></i> Password
+                </h4>
+              </div>
+              <p class="settings-card-desc" id="settings-password-elsewhere" style="display: none;"></p>
+              <div id="settings-password-fields">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="settings-password-current">Current password:</label>
+                  <input type="password" id="settings-password-current" class="settings-input" autocomplete="current-password">
+                </div>
+                <div class="settings-grid-2col">
+                  <div class="settings-field">
+                    <label class="settings-field-label" for="settings-password-new">New password:</label>
+                    <input type="password" id="settings-password-new" class="settings-input" autocomplete="new-password">
+                  </div>
+                  <div class="settings-field">
+                    <label class="settings-field-label" for="settings-password-confirm">New password again:</label>
+                    <input type="password" id="settings-password-confirm" class="settings-input" autocomplete="new-password">
+                  </div>
+                </div>
+                <div class="settings-field-hint"><span class="pw-min-text">At least 12 characters</span>, not your username or current password. Your other logins end.</div>
+                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 10px;">
+                  <span id="settings-password-status" style="font-size: 12px; display: none;"></span>
+                  <button type="button" class="btn btn-accent" data-on-click="changeOwnPassword"><i data-lucide="key-round"></i> Change password</button>
+                </div>
+              </div>
+            </div>
 
             <div data-nav-title="Sync Between Devices" class="settings-group-card web-only-setting server-only-setting">
               <div class="settings-card-header">
@@ -5721,6 +5740,55 @@
     </div>
   </div>
 
+  <!-- Reset an account's password (#205) -->
+  <div class="modal-overlay" id="pw-reset-modal">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <span id="pw-reset-title">Reset password</span>
+        <button class="btn" data-on-click="closeModal" data-click-args='["pw-reset-modal"]' title="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="pw-reset-form-part">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 6px; cursor: pointer;">
+            <input type="radio" name="pw-reset-mode" value="generate" checked data-on-change="updatePasswordResetMode">
+            <span>Generate a random password <span style="color: var(--text-muted);">(shown once)</span></span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 10px; cursor: pointer;">
+            <input type="radio" name="pw-reset-mode" value="set" data-on-change="updatePasswordResetMode">
+            <span>Set a password</span>
+          </label>
+          <div id="pw-reset-fields" style="display: none;">
+            <div class="form-group">
+              <label for="pw-reset-new">New password</label>
+              <input type="password" id="pw-reset-new" class="pane-quick-filter" style="width: 100%;" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label for="pw-reset-confirm">New password again</label>
+              <input type="password" id="pw-reset-confirm" class="pane-quick-filter" style="width: 100%;" autocomplete="new-password">
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;"><span class="pw-min-text">At least 12 characters</span>, not the username.</div>
+          </div>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+            <input type="checkbox" id="pw-reset-must-change" checked>
+            <span>Must choose a new password at next login</span>
+          </label>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px;">All of this user's current logins end.</div>
+          <div id="pw-reset-error" style="color: #ef4444; font-size: 12px; min-height: 16px; margin-top: 8px;"></div>
+        </div>
+        <div id="pw-reset-result" style="display: none;">
+          <p style="margin: 0 0 8px; font-size: 13px;">The new password. Copy it now: it is not shown again.</p>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="pw-reset-generated" class="pane-quick-filter bk-mono" style="flex: 1;" readonly>
+            <button type="button" class="btn btn-sm" data-on-click="copyResetPassword" title="Copy"><i data-lucide="copy"></i> Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn modal-action-btn" id="pw-reset-cancel" data-on-click="closeModal" data-click-args='["pw-reset-modal"]'>Cancel</button>
+        <button type="button" class="btn btn-accent modal-action-btn" id="pw-reset-save" data-on-click="submitPasswordReset">Reset password</button>
+      </div>
+    </div>
+  </div>
   <!-- Add User Modal -->
   <div class="modal-overlay" id="add-user-modal">
     <div class="modal-box" style="width: 420px;">
@@ -5743,6 +5811,15 @@
               </button>
             </div>
           </div>
+          <div class="form-group">
+            <label style="font-size: 11px;" for="new-user-password-confirm">Password again:</label>
+            <input type="password" id="new-user-password-confirm" class="pane-quick-filter" style="width: 100%; padding: 8px;" autocomplete="new-password">
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;"><span class="pw-min-text">At least 12 characters</span>, not the username.</div>
+          </div>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 2px 0 10px; cursor: pointer;">
+            <input type="checkbox" id="new-user-must-change" checked>
+            <span>Must choose a new password at first login</span>
+          </label>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
               <label style="font-size: 11px;">Role:</label>
@@ -5772,6 +5849,37 @@
   </div>
 
   <!-- Login Modal -->
+  <!-- Choose a new password (#205): blocks everything else until done. Not a .modal-overlay,
+       so Escape, Back and "close all dialogs" cannot close it. -->
+  <div id="pw-required" role="dialog" aria-modal="true" aria-labelledby="pw-required-title" style="display: none; position: fixed; inset: 0; z-index: 100000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); padding: 16px;">
+    <form class="modal-box" id="pw-required-form" data-submit-prevent data-on-submit="saveRequiredPassword" style="width: 100%; max-width: 420px;" autocomplete="off">
+      <div class="modal-header">
+        <span id="pw-required-title"><i data-lucide="key-round" style="width: 15px; height: 15px; vertical-align: -2px;"></i> Choose a new password</span>
+      </div>
+      <div class="modal-body">
+        <p style="margin: 0 0 12px; color: var(--text-muted); font-size: 13px;">Your account needs a new password before you continue.</p>
+        <div class="form-group">
+          <label for="pw-required-current">Current password</label>
+          <input type="password" id="pw-required-current" class="pane-quick-filter" style="width: 100%;" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label for="pw-required-new">New password</label>
+          <input type="password" id="pw-required-new" class="pane-quick-filter" style="width: 100%;" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="pw-required-confirm">New password again</label>
+          <input type="password" id="pw-required-confirm" class="pane-quick-filter" style="width: 100%;" autocomplete="new-password">
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-muted);"><span class="pw-min-text">At least 12 characters</span>, not your username or current password.</div>
+        <div id="pw-required-error" style="color: #ef4444; font-size: 12px; min-height: 16px; margin-top: 8px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn modal-action-btn" data-on-click="handleLogoutOrExit">Log out</button>
+        <button type="submit" class="btn btn-accent modal-action-btn" id="pw-required-save">Save password</button>
+      </div>
+    </form>
+  </div>
+
   <div class="modal-overlay login-screen-overlay" id="login-modal">
     <!-- Top-Left Corner Branding Logo (Mobile / Tablet) -->
     <div class="login-corner-brand">

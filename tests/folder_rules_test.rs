@@ -49,7 +49,7 @@ async fn folder_rules_limit_and_grant() {
     let admin = login("admin", "AdminSecretPass123!").await;
     // bob may only use his own folder; ann may use everything
     for (name, roots) in [("bob", json!([s(&bob_home)])), ("ann", json!(["*"]))] {
-        let st = c.post(format!("{base}/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": name, "password": "UserSecretPass123!", "role": "user", "home_dir": s(&bob_home), "allowed_roots": roots })).send().await.unwrap().status();
+        let st = c.post(format!("{base}/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": name, "password": "UserSecretPass123!", "role": "user", "home_dir": s(&bob_home), "allowed_roots": roots, "must_change_password": false })).send().await.unwrap().status();
         assert_eq!(st.as_u16(), 200);
     }
     let bob = login("bob", "UserSecretPass123!").await;

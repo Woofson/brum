@@ -21,6 +21,9 @@ pub struct LoginResponse {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub token: String,
     pub user: User,
+    /// The account must choose a new password before anything else (#205)
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub must_change_password: bool,
 }
 
 pub async fn handle_oidc_config(State(state): State<AppState>) -> Json<crate::auth::oidc::OidcPublicConfig> {
@@ -219,7 +222,8 @@ pub async fn handle_login(
         let max_age_secs = state.config.server.session_duration_hours * 3600;
         let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
         let body_token = if session_cookie::wants_cookie_only(&headers) { String::new() } else { token.clone() };
-        let mut resp = Json(LoginResponse { token: body_token, user }).into_response();
+        let must_change_password = state.config.server.enable_auth && !state.config.server.standalone && state.auth.must_change_password(&user.username);
+        let mut resp = Json(LoginResponse { token: body_token, user, must_change_password }).into_response();
         session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, max_age_secs, secure);
         resp
     };
@@ -343,7 +347,21 @@ pub async fn handle_logout(
     resp
 }
 
+/// The signed-in account, and whether it must choose a new password first (#205)
 pub async fn handle_get_me(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let login_on = state.config.server.enable_auth && !state.config.server.standalone;
+    let Json(user) = handle_get_me_user(State(state.clone()), headers).await?;
+    let mut body = serde_json::to_value(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    if login_on && state.auth.must_change_password(&user.username) {
+        body["must_change_password"] = serde_json::Value::Bool(true);
+    }
+    Ok(Json(body))
+}
+
+async fn handle_get_me_user(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<User>, (StatusCode, String)> {
@@ -523,7 +541,7 @@ pub struct UpdateProfileRequest {
 pub async fn handle_update_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
-    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
+    _connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     Json(payload): Json<UpdateProfileRequest>,
 ) -> Result<axum::response::Response, (StatusCode, String)> {
     let username = if !state.config.server.enable_auth || state.config.server.standalone {
@@ -549,6 +567,11 @@ pub async fn handle_update_profile(
             return Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()));
         }
     };
+
+    if payload.new_password.as_deref().is_some_and(|p| !p.trim().is_empty()) {
+        // Changing the password needs the current one (#205): it has its own request now
+        return Err((StatusCode::BAD_REQUEST, "Change your password with Change password, which asks for the current one.".into()));
+    }
 
     let mut effective_avatar_url = payload.avatar_url.clone();
 
@@ -586,47 +609,6 @@ pub async fn handle_update_profile(
         effective_avatar_url.as_deref(),
     ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update profile: {}", e)))?;
 
-    if let Some(ref new_pass) = payload.new_password {
-        if !new_pass.trim().is_empty() {
-            let auth = state.auth.clone();
-            let u = username.clone();
-            let p = new_pass.clone();
-            tokio::task::spawn_blocking(move || {
-                auth.update_user_password(&u, &p)
-            })
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Password update task failed: {}", e)))?
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
-            // The first-login note stays until the built-in admin's own password is changed
-            if username.eq_ignore_ascii_case(&state.config.auth.default_admin_user) {
-                crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
-            }
-
-            // The new password ended every login, so this browser gets a fresh one
-            if state.config.server.enable_auth && !state.config.server.standalone {
-                let user = state.auth.get_user_by_username(&username)
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-                    .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
-                let token = state.auth.generate_token(&user)
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e)))?;
-                let peer_addr = connect_info.map(|ci| ci.0);
-                let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
-                let mut body = serde_json::json!({
-                    "success": true,
-                    "message": "Profile updated successfully",
-                    "avatar_url": effective_avatar_url,
-                    "session_renewed": true
-                });
-                if !session_cookie::wants_cookie_only(&headers) {
-                    body["token"] = serde_json::Value::String(token.clone());
-                }
-                let mut resp = Json(body).into_response();
-                session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, state.config.server.session_duration_hours * 3600, secure);
-                return Ok(resp);
-            }
-        }
-    }
-
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Profile updated successfully",
@@ -663,6 +645,15 @@ async fn handle_update_user_rbac_inner(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     require_admin(&claims)?;
+    // An admin cannot lock themselves out, so the machine always keeps an admin (#205)
+    if username.eq_ignore_ascii_case(&claims.sub) {
+        if payload.role != "admin" {
+            return Err((StatusCode::BAD_REQUEST, "You cannot remove your own admin role. Another admin can.".into()));
+        }
+        if payload.is_disabled.unwrap_or(false) {
+            return Err((StatusCode::BAD_REQUEST, "You cannot disable your own account. Another admin can.".into()));
+        }
+    }
 
     let services_json = if payload.allowed_services.is_empty() {
         "[\"*\"]".to_string()
@@ -726,6 +717,9 @@ pub struct CreateUserRequest {
     pub allowed_roots: Option<Vec<String>>,
     #[serde(default)]
     pub shell: Option<String>,
+    /// Must choose a new password at first sign-in (on unless switched off, #205)
+    #[serde(default)]
+    pub must_change_password: Option<bool>,
 }
 
 async fn handle_create_user_inner(
@@ -735,6 +729,10 @@ async fn handle_create_user_inner(
 ) -> Result<Json<User>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     require_admin(&claims)?;
+    crate::auth::check_password_policy(&payload.password, &payload.username, None, state.config.auth.min_password_length)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}.")))?;
+    let must_change = payload.must_change_password.unwrap_or(true);
+    let new_name = payload.username.clone();
 
     let final_home = payload.home_dir.unwrap_or_else(|| {
         state.config.storage.default_user_home_template.replace("{username}", &payload.username)
@@ -757,7 +755,7 @@ async fn handle_create_user_inner(
     let r_json = roots_json;
     let fh = final_home;
     let shell_opt = payload.shell.filter(|s| !s.trim().is_empty());
-    tokio::task::spawn_blocking(move || -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
+    let created = tokio::task::spawn_blocking(move || -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
         let mut user = auth.create_user(&u, &p, &r, &fh, r_json.as_deref())?;
         if let Some(sh) = shell_opt {
             let _ = auth.update_user_rbac(
@@ -778,8 +776,11 @@ async fn handle_create_user_inner(
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("User creation task failed: {}", e)))?
-    .map(Json)
-    .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create user: {}", e)))
+    .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create user: {}", e)))?;
+    if must_change {
+        state.auth.set_must_change_password(&new_name, true).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+    Ok(Json(created))
 }
 
 async fn handle_delete_user_inner(
@@ -789,6 +790,9 @@ async fn handle_delete_user_inner(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     require_admin(&claims)?;
+    if username.eq_ignore_ascii_case(&claims.sub) {
+        return Err((StatusCode::BAD_REQUEST, "You cannot delete your own account. Another admin can.".into()));
+    }
 
     state.auth.delete_user(&username).map(|deleted| {
         Json(serde_json::json!({ "success": deleted }))
@@ -1186,4 +1190,161 @@ pub async fn handle_revoke_api_token(State(state): State<AppState>, headers: Hea
     let r = handle_revoke_api_token_inner(State(state), headers, AxumPath(token_id.clone())).await;
     log_result(who, "API token revoked", &token_id, String::new(), &r);
     r
+}
+
+// ---------------------------------------------------------------------------------------------
+// Passwords of Brum accounts (#205): choose your own (with the current one), admin reset, rules.
+
+/// Why this account's password cannot be changed in Brum, if it cannot
+fn managed_elsewhere_reason(user: &User) -> Option<&'static str> {
+    if !crate::auth::password_managed_elsewhere(user) {
+        return None;
+    }
+    Some(match user.auth_source.as_deref() {
+        Some("windows") => "This is a Windows account: change its password in Windows.",
+        Some("oidc") => "This account signs in with single sign-on: change its password there.",
+        _ => "This is an account of this computer: change its password on the computer (for example with passwd).",
+    })
+}
+
+#[derive(Deserialize)]
+pub struct ChangeOwnPasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+pub async fn handle_change_own_password(
+    State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
+    headers: HeaderMap,
+    Json(payload): Json<ChangeOwnPasswordRequest>,
+) -> Result<axum::response::Response, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_change_own_password_inner(State(state), connect_info, headers, Json(payload)).await;
+    let target = who.clone().unwrap_or_default();
+    log_result(who, "password changed", &target, String::new(), &r);
+    r
+}
+
+async fn handle_change_own_password_inner(
+    State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
+    headers: HeaderMap,
+    Json(payload): Json<ChangeOwnPasswordRequest>,
+) -> Result<axum::response::Response, (StatusCode, String)> {
+    if !state.config.server.enable_auth || state.config.server.standalone {
+        return Err((StatusCode::BAD_REQUEST, "Sign-in is switched off on this machine, so there is no password to change.".into()));
+    }
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.token_id.is_some() {
+        return Err((StatusCode::FORBIDDEN, "An API token cannot change the account's password.".into()));
+    }
+    let user = state.auth.get_user_by_username(&claims.sub)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "This account has no password on this machine.".to_string()))?;
+    if let Some(why) = managed_elsewhere_reason(&user) {
+        return Err((StatusCode::BAD_REQUEST, why.into()));
+    }
+    // A wrong current password counts like a wrong password at sign-in
+    account_guard_try(&state, &user.username).map_err(|m| (StatusCode::TOO_MANY_REQUESTS, m))?;
+    let (auth, name, current) = (state.auth.clone(), user.username.clone(), payload.current_password.clone());
+    let current_ok = tokio::task::spawn_blocking(move || auth.verify_own_password(&name, &current))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    if !current_ok {
+        return Err((StatusCode::UNAUTHORIZED, "The current password is not right.".into()));
+    }
+    crate::auth::check_password_policy(&payload.new_password, &user.username, Some(&payload.current_password), state.config.auth.min_password_length)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}.")))?;
+
+    let (auth, name, new_pass) = (state.auth.clone(), user.username.clone(), payload.new_password.clone());
+    tokio::task::spawn_blocking(move || auth.update_user_password(&name, &new_pass))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {e}")))?;
+    state.auth.set_must_change_password(&user.username, false).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    state.rate_limiter.reset(&account_guard_key(&user.username));
+    // The first-login note goes once the built-in admin has a password of its own
+    if user.username.eq_ignore_ascii_case(&state.config.auth.default_admin_user) {
+        crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
+    }
+
+    // The new password ended every login, so this browser gets a fresh one
+    let token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {e}")))?;
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+    let mut body = serde_json::json!({ "success": true, "message": "Password changed." });
+    if !session_cookie::wants_cookie_only(&headers) {
+        body["token"] = serde_json::Value::String(token.clone());
+    }
+    let mut resp = Json(body).into_response();
+    session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, state.config.server.session_duration_hours * 3600, secure);
+    Ok(resp)
+}
+
+#[derive(Deserialize)]
+pub struct ResetPasswordRequest {
+    /// "generate" (a random password, shown once) or "set" (the one in `password`)
+    pub mode: String,
+    #[serde(default)]
+    pub password: Option<String>,
+    /// The account must choose a new password at its next sign-in (on unless switched off)
+    #[serde(default)]
+    pub must_change: Option<bool>,
+}
+
+pub async fn handle_reset_user_password(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(username): AxumPath<String>,
+    Json(payload): Json<ResetPasswordRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let detail = format!(
+        "{}{}",
+        if payload.mode == "generate" { "random password" } else { "password set by admin" },
+        if payload.must_change.unwrap_or(true) { ", must choose a new one at next sign-in" } else { "" }
+    );
+    let r = handle_reset_user_password_inner(State(state), headers, AxumPath(username.clone()), Json(payload)).await;
+    log_result(who, "password reset", &username, detail, &r);
+    r
+}
+
+async fn handle_reset_user_password_inner(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(username): AxumPath<String>,
+    Json(payload): Json<ResetPasswordRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+    let user = state.auth.get_user_by_username(&username)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "No such account.".to_string()))?;
+    if let Some(why) = managed_elsewhere_reason(&user) {
+        return Err((StatusCode::BAD_REQUEST, why.into()));
+    }
+    let (password, generated) = match payload.mode.as_str() {
+        "generate" => (crate::auth::generate_admin_password(), true),
+        "set" => {
+            let p = payload.password.unwrap_or_default();
+            crate::auth::check_password_policy(&p, &user.username, None, state.config.auth.min_password_length)
+                .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}.")))?;
+            (p, false)
+        }
+        _ => return Err((StatusCode::BAD_REQUEST, "Choose to generate a password or to set one.".into())),
+    };
+    let (auth, name, pass) = (state.auth.clone(), user.username.clone(), password.clone());
+    tokio::task::spawn_blocking(move || auth.update_user_password(&name, &pass))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {e}")))?;
+    state.auth.set_must_change_password(&user.username, payload.must_change.unwrap_or(true))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    state.rate_limiter.reset(&account_guard_key(&user.username));
+    let mut body = serde_json::json!({ "success": true, "message": "Password reset. All of this user's current logins have ended." });
+    if generated {
+        body["password"] = serde_json::Value::String(password);
+    }
+    Ok(Json(body))
 }

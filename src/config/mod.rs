@@ -739,6 +739,9 @@ pub struct AuthConfig {
     pub default_admin_user: String,
     #[serde(default = "default_admin_password", skip_serializing)]
     pub default_admin_pass: String,
+    /// The shortest new password a Brum account may choose (#205)
+    #[serde(default = "default_min_password_length")]
+    pub min_password_length: usize,
     #[serde(default)]
     pub oidc: OidcConfig,
 }
@@ -801,6 +804,7 @@ impl Default for AuthConfig {
             allow_guest: false,
             default_admin_user: default_admin_username(),
             default_admin_pass: default_admin_password(),
+            min_password_length: default_min_password_length(),
             oidc: OidcConfig::default(),
         }
     }
@@ -810,6 +814,7 @@ fn default_auth_mode() -> String { "mixed".to_string() }
 fn default_pam_service() -> String { "login".to_string() }
 fn default_false() -> bool { false }
 fn default_admin_username() -> String { "admin".to_string() }
+fn default_min_password_length() -> usize { 12 }
 fn default_admin_password() -> String { "brum".to_string() }
 fn default_oidc_provider_name() -> String { "Authentik".to_string() }
 fn default_oidc_scopes() -> Vec<String> { vec!["openid".to_string(), "profile".to_string(), "email".to_string(), "groups".to_string()] }

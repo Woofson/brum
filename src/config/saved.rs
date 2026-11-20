@@ -79,6 +79,7 @@ pub const SPECS: &[Spec] = &[
     s("auth.mode", Kind::Choice(&["mixed", "builtin", "pam"])),
     s("auth.pam_service", Kind::Text(64)),
     s("auth.allow_guest", Kind::Bool),
+    s("auth.min_password_length", Kind::Int(8, 128)),
     s("auth.oidc.enabled", Kind::Bool),
     s("auth.oidc.provider_name", Kind::Text(64)),
     s("auth.oidc.issuer_url", Kind::Url),

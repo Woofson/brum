@@ -97,6 +97,7 @@ const BRUM_ACTIONS = new Set([
   'fleetManualForm', 'fleetManualCancel', 'fleetManualSave',
   'ssMoveFromFile',
   'fleetMoveFromFile',
+  'changeOwnPassword', 'saveRequiredPassword', 'openPasswordReset', 'updatePasswordResetMode', 'submitPasswordReset', 'copyResetPassword',
   'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
   'rcloneInstall', 'rcloneCheckUpdate', 'rcloneOpenRemote', 'rcloneTestRemote', 'rcloneRemoveRemote', 'rcloneAddJottacloud',
@@ -3544,6 +3545,14 @@ async function checkAuthAndLoad() {
       } catch (_) {}
 
       hideModal('login-modal');
+
+      // An account that must choose a new password does that first, before anything else (#205)
+      if (App.user.must_change_password) {
+        document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+        document.documentElement.classList.add('auth-ready');
+        showPasswordRequired();
+        return;
+      }
 
       if (isLocked) {
         document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
@@ -10496,7 +10505,7 @@ const SS_GROUPS = [
   { id: 'reach', icon: 'globe', title: 'Network & Access', desc: 'Where Brum can be opened from, and how long people stay signed in.',
     keys: ['server.host', 'server.port', 'server.server_name', 'server.session_duration_hours', 'server.upload_max_size_mb', 'server.allowed_origins', 'server.trusted_proxies'] },
   { id: 'login', icon: 'log-in', title: 'Sign-in', desc: 'Which accounts can sign in to this Brum.',
-    keys: ['auth.mode', 'auth.pam_service', 'auth.allow_guest'] },
+    keys: ['auth.mode', 'auth.pam_service', 'auth.allow_guest', 'auth.min_password_length'] },
   { id: 'sso', icon: 'key-round', title: 'Single Sign-On', desc: 'Sign in with an account from Authentik, Keycloak, Authelia or a similar service.',
     keys: ['auth.oidc.enabled', 'auth.oidc.provider_name', 'auth.oidc.issuer_url', 'auth.oidc.client_id', 'auth.oidc.client_secret', 'auth.oidc.redirect_url', 'auth.oidc.scopes', 'auth.oidc.auto_provision', 'auth.oidc.admin_group', 'auth.oidc.default_user_role', 'auth.oidc.default_home_template', 'auth.oidc.force_sso_only', 'auth.oidc.button_icon'] },
   { id: 'folders', icon: 'folder-tree', title: 'Folders', desc: 'The shared folders everyone with access gets, and where personal folders are.',
@@ -10531,6 +10540,7 @@ const SS_TEXT = {
   'server.trusted_proxies': { label: 'Reverse proxies to trust', help: 'Only needed behind Caddy, Nginx, Traefik or similar: their addresses, so Brum sees who is really connecting. One per line, like 127.0.0.1 or 172.16.0.0/12.' },
   'auth.mode': { label: 'Accounts that can sign in', help: 'Brum accounts are made in Admin → Users. Computer accounts are the accounts of this machine (Linux PAM or Windows).', choices: { mixed: 'Brum accounts and this computer\'s accounts', builtin: 'Only Brum accounts', pam: 'Only this computer\'s accounts' } },
   'auth.pam_service': { label: 'PAM service', help: 'Linux only. Which login rules computer accounts are checked against. "login" is right for almost everyone.' },
+  'auth.min_password_length': { label: 'Shortest new password', help: 'For Brum accounts, in characters. Passwords already in use keep working until they are changed. 12 or more is a good choice.' },
   'auth.allow_guest': { label: 'Let guests look around without signing in', help: 'Guests can only read, never change anything. Leave it off unless you really want that.' },
   'auth.oidc.enabled': { label: 'Use single sign-on', help: 'Adds a sign-in button for your identity service on the login page.' },
   'auth.oidc.provider_name': { label: 'Name on the button', help: 'For example Authentik or Keycloak.' },
@@ -11327,6 +11337,9 @@ async function loadUsersTable() {
                   <i data-lucide="${isDisabled ? 'shield-ban' : 'shield-check'}" style="width: 13px; height: 13px;"></i>
                   <span id="user-disabled-badge-${safeUname}">${isDisabled ? 'Disabled' : 'Active'}</span>
                 </label>
+                ${passwordElsewhereReason(u) ? '' : `<button type="button" class="btn btn-sm" style="height: 28px; padding: 0 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" data-on-click="openPasswordReset" data-click-args="${actionArgs(u.username)}" title="Reset this account's password">
+                  <i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Reset password
+                </button>`}
                 <button type="button" class="btn btn-accent btn-sm" style="height: 28px; padding: 0 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" data-on-click="saveUserRbac" data-click-args="${actionArgs(u.username)}" title="Save RBAC & Roots">
                   <i data-lucide="save" style="width: 12px; height: 12px;"></i> Save
                 </button>
@@ -11844,10 +11857,83 @@ async function triggerServerRestart() {
   }, 1500);
 }
 
+// ---------- Admin: reset an account's password (#205) ----------
+let _pwResetUser = null;
+
+function openPasswordReset(username) {
+  _pwResetUser = username;
+  const title = document.getElementById('pw-reset-title');
+  if (title) title.textContent = `Reset password: ${username}`;
+  const gen = document.querySelector('input[name="pw-reset-mode"][value="generate"]');
+  if (gen) gen.checked = true;
+  ['pw-reset-new', 'pw-reset-confirm'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('pw-reset-must-change').checked = true;
+  document.getElementById('pw-reset-error').textContent = '';
+  document.getElementById('pw-reset-form-part').style.display = '';
+  document.getElementById('pw-reset-result').style.display = 'none';
+  document.getElementById('pw-reset-save').style.display = '';
+  document.getElementById('pw-reset-cancel').textContent = 'Cancel';
+  updatePasswordResetMode();
+  showPasswordMinimum();
+  showModal('pw-reset-modal');
+}
+
+function updatePasswordResetMode() {
+  const mode = document.querySelector('input[name="pw-reset-mode"]:checked')?.value || 'generate';
+  document.getElementById('pw-reset-fields').style.display = mode === 'set' ? '' : 'none';
+}
+
+async function submitPasswordReset() {
+  const username = _pwResetUser;
+  if (!username) return;
+  const mode = document.querySelector('input[name="pw-reset-mode"]:checked')?.value || 'generate';
+  const must_change = document.getElementById('pw-reset-must-change').checked;
+  const errEl = document.getElementById('pw-reset-error');
+  const body = { mode, must_change };
+  if (mode === 'set') {
+    const p1 = document.getElementById('pw-reset-new').value, p2 = document.getElementById('pw-reset-confirm').value;
+    const problem = checkNewPassword(p1, p2, username);
+    if (problem) { errEl.textContent = problem; return; }
+    body.password = p1;
+  }
+  let data;
+  try {
+    const resp = await fetch(`/api/auth/users/${encodeURIComponent(username)}/password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (!resp.ok) { errEl.textContent = (await resp.text()).trim() || 'The password was not reset.'; return; }
+    data = await resp.json();
+  } catch (e) {
+    errEl.textContent = `Error: ${e.message || e}`;
+    return;
+  }
+  if (data.password) {
+    // Shown once: the admin copies it now
+    document.getElementById('pw-reset-form-part').style.display = 'none';
+    document.getElementById('pw-reset-result').style.display = '';
+    document.getElementById('pw-reset-generated').value = data.password;
+    document.getElementById('pw-reset-save').style.display = 'none';
+    document.getElementById('pw-reset-cancel').textContent = 'Done';
+  } else {
+    closeModal('pw-reset-modal');
+  }
+  showToast(`Password of ${username} reset. All of their current logins have ended.`, 'success');
+}
+
+function copyResetPassword() {
+  const v = document.getElementById('pw-reset-generated')?.value || '';
+  copyTextToClipboard(v, 'Password copied.');
+}
+
 function showAddUserPrompt() {
   document.getElementById('new-user-username').value = '';
   document.getElementById('new-user-password').value = '';
   document.getElementById('new-user-password').type = 'password';
+  const again = document.getElementById('new-user-password-confirm');
+  if (again) again.value = '';
+  const mustChange = document.getElementById('new-user-must-change');
+  if (mustChange) mustChange.checked = true;
+  showPasswordMinimum();
   document.getElementById('new-user-role').value = 'user';
   document.getElementById('new-user-home').value = '/';
   const shellInput = document.getElementById('new-user-shell');
@@ -11876,12 +11962,21 @@ async function submitAddUser() {
     }
     return;
   }
+  const problem = checkNewPassword(password, document.getElementById('new-user-password-confirm')?.value ?? password, username);
+  if (problem) {
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = problem.replace('new password', 'password');
+    }
+    return;
+  }
+  const must_change_password = document.getElementById('new-user-must-change')?.checked !== false;
 
   try {
     const resp = await fetch('/api/auth/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role, home_dir, shell: shell || null })
+      body: JSON.stringify({ username, password, role, home_dir, shell: shell || null, must_change_password })
     });
 
     if (resp.ok) {
@@ -22427,24 +22522,128 @@ function openSettingsAccountTab() {
   const emailInput = document.getElementById('settings-profile-email');
   const bioInput = document.getElementById('settings-profile-bio');
   const avUrlInput = document.getElementById('settings-profile-avatar-url');
-  const newPassInput = document.getElementById('settings-profile-new-pass');
-  const confirmPassInput = document.getElementById('settings-profile-confirm-pass');
 
   if (fnInput) fnInput.value = user.full_name || localFullName || '';
   if (nickInput) nickInput.value = user.nickname || localNick || '';
   if (emailInput) emailInput.value = user.email || localEmail || '';
   if (bioInput) bioInput.value = user.bio || localBio || '';
   if (avUrlInput) avUrlInput.value = user.avatar_url || localAvatar || '';
-  if (newPassInput) newPassInput.value = '';
-  if (confirmPassInput) confirmPassInput.value = '';
-
-  const passSec = document.getElementById('settings-profile-password-section');
-  if (passSec) passSec.style.display = (App.isStandalone || !App.signedIn) ? 'none' : 'grid';
+  preparePasswordCard(user);
 
   const statusEl = document.getElementById('settings-profile-save-status');
   if (statusEl) statusEl.style.display = 'none';
 
   if (window.lucide) lucide.createIcons();
+}
+
+// ---------- Passwords of Brum accounts (#205) ----------
+
+function minPasswordLength() {
+  return Number(App.systemStatus?.min_password_length) || 12;
+}
+
+// "At least 12 characters" wherever a new password is typed, with this machine's minimum
+function showPasswordMinimum() {
+  document.querySelectorAll('.pw-min-text').forEach(el => { el.textContent = `At least ${minPasswordLength()} characters`; });
+}
+
+// Why this account's password is not changed in Brum, or '' when it is
+function passwordElsewhereReason(user) {
+  const src = user?.auth_source;
+  if (src === 'windows') return 'This is a Windows account: change its password in Windows.';
+  if (src === 'oidc') return 'This account signs in with single sign-on: change its password there.';
+  if (user?.is_pam || src === 'pam') return 'This is an account of this computer: change its password on the computer (for example with passwd).';
+  return '';
+}
+
+// The same checks the server makes, so mistakes show before anything is sent
+function checkNewPassword(newPass, confirmPass, username, current) {
+  if (newPass !== confirmPass) return 'The two new passwords are not the same.';
+  if (newPass.length < minPasswordLength()) return `The new password must be at least ${minPasswordLength()} characters.`;
+  if (username && newPass.trim().toLowerCase() === String(username).trim().toLowerCase()) return 'The new password must not be the username.';
+  if (current !== undefined && newPass === current) return 'The new password must differ from the current one.';
+  return '';
+}
+
+// The "Choose a new password" box: shown instead of everything else until it is done
+function showPasswordRequired() {
+  const box = document.getElementById('pw-required');
+  if (!box) return;
+  ['pw-required-current', 'pw-required-new', 'pw-required-confirm'].forEach(id => { document.getElementById(id).value = ''; });
+  const err = document.getElementById('pw-required-error');
+  if (err) err.textContent = '';
+  showPasswordMinimum();
+  box.style.display = 'flex';
+  if (window.lucide) lucide.createIcons({ root: box });
+  setTimeout(() => document.getElementById('pw-required-current')?.focus(), 50);
+}
+
+async function saveRequiredPassword() {
+  const val = id => document.getElementById(id)?.value || '';
+  const current = val('pw-required-current'), newPass = val('pw-required-new'), confirm = val('pw-required-confirm');
+  const err = document.getElementById('pw-required-error');
+  const say = (t) => { if (err) err.textContent = t; };
+  if (!current) { say('Type your current password.'); return; }
+  const problem = checkNewPassword(newPass, confirm, App.user?.username, current);
+  if (problem) { say(problem); return; }
+  const btn = document.getElementById('pw-required-save');
+  if (btn) btn.disabled = true;
+  const failed = await sendOwnNewPassword(current, newPass);
+  if (btn) btn.disabled = false;
+  if (failed) { say(failed); return; }
+  // Start the page again with the new login
+  showToast('Password saved.', 'success');
+  setTimeout(() => location.reload(), 400);
+}
+
+function preparePasswordCard(user) {
+  const card = document.getElementById('settings-password-card');
+  if (!card) return;
+  card.style.display = (App.isStandalone || !App.signedIn) ? 'none' : '';
+  const why = passwordElsewhereReason(user);
+  const note = document.getElementById('settings-password-elsewhere');
+  const fields = document.getElementById('settings-password-fields');
+  if (note) { note.textContent = why; note.style.display = why ? '' : 'none'; }
+  if (fields) fields.style.display = why ? 'none' : '';
+  ['settings-password-current', 'settings-password-new', 'settings-password-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const status = document.getElementById('settings-password-status');
+  if (status) status.style.display = 'none';
+  showPasswordMinimum();
+}
+
+// Sends a new password for the signed-in account; returns '' when it worked, else the reason
+async function sendOwnNewPassword(current, newPass) {
+  const resp = await fetch('/api/auth/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS },
+    body: JSON.stringify({ current_password: current, new_password: newPass })
+  });
+  if (!resp.ok) return (await resp.text().catch(() => '')).trim() || 'The password was not changed.';
+  markSignedIn(true);
+  return '';
+}
+
+async function changeOwnPassword() {
+  const val = id => document.getElementById(id)?.value || '';
+  const current = val('settings-password-current'), newPass = val('settings-password-new'), confirm = val('settings-password-confirm');
+  const status = document.getElementById('settings-password-status');
+  const say = (text, ok) => {
+    if (!status) return;
+    status.textContent = text;
+    status.style.color = ok ? '#34d399' : '#ef4444';
+    status.style.display = '';
+  };
+  if (!current) { say('Type your current password.', false); return; }
+  const problem = checkNewPassword(newPass, confirm, App.user?.username, current);
+  if (problem) { say(problem, false); return; }
+  const failed = await sendOwnNewPassword(current, newPass);
+  if (failed) { say(failed, false); return; }
+  ['settings-password-current', 'settings-password-new', 'settings-password-confirm'].forEach(id => { document.getElementById(id).value = ''; });
+  say('Password changed.', true);
+  showToast('Password changed. Your other logins have ended.', 'success');
 }
 
 function handleSettingsAvatarFileUpload(event) {
@@ -22496,19 +22695,8 @@ async function saveSettingsUserProfile() {
   const email = document.getElementById('settings-profile-email')?.value.trim() || null;
   const bio = document.getElementById('settings-profile-bio')?.value.trim() || null;
   const avatar_url = document.getElementById('settings-profile-avatar-url')?.value.trim() || null;
-  const new_pass = document.getElementById('settings-profile-new-pass')?.value || null;
-  const confirm_pass = document.getElementById('settings-profile-confirm-pass')?.value || null;
 
   const statusEl = document.getElementById('settings-profile-save-status');
-  if (new_pass && new_pass !== confirm_pass) {
-    if (statusEl) {
-      statusEl.style.display = 'block';
-      statusEl.style.color = '#ef4444';
-      statusEl.textContent = 'Passwords do not match!';
-    }
-    showToast('Passwords do not match', 'error');
-    return;
-  }
 
   if (statusEl) {
     statusEl.style.display = 'block';
@@ -22535,7 +22723,7 @@ async function saveSettingsUserProfile() {
     const resp = await fetch('/api/auth/profile', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ nickname, full_name, bio, email, avatar_url, new_password: new_pass })
+      body: JSON.stringify({ nickname, full_name, bio, email, avatar_url })
     });
 
     if (resp.ok) {
@@ -26499,6 +26687,13 @@ async function handleLoginSubmit() {
     }
     if (err) err.style.display = 'none';
     if (pInput) pInput.value = '';
+
+    // An account that must choose a new password does that first, before anything else (#205)
+    if (loginData.must_change_password) {
+      if (App.user) App.user.must_change_password = true;
+      showPasswordRequired();
+      return;
+    }
 
     // The theme list comes with the machine's settings: fetch it alongside the user's own
     // settings, so their theme can be shown straight away (#200)

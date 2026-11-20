@@ -474,10 +474,23 @@ Passwords and tokens Brum has to use again (bookmark and shared-mount logins, SF
 `default_admin_pass` in `config.toml` operates under specific security rules:
 
 1. **One-Time Database Seeding Only**:
-   The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords are changed in Brum (avatar menu → **User Profile & Account Settings**), or the built-in admin gets a new one with `brum reset-admin-password`.
+   The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords are changed in Brum (see [Accounts & Passwords](#accounts--passwords)), or the built-in admin gets a new one with `brum reset-admin-password`.
 2. **Insecure Default Guard (`"brum"` vs Custom Password)**:
-   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note stays until the `admin` password is changed. Logging in with `admin` / `brum` will fail.
+   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. At the first sign-in Brum asks for a new password, and the note is removed once it is chosen. Logging in with `admin` / `brum` will fail.
    * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.
+
+## Accounts & Passwords
+
+These rules are for Brum's own accounts (made in **Admin → Users**). Accounts of the computer (Linux or Windows logins) and single sign-on accounts have no password in Brum: change it on the computer, or with your identity service. Brum shows no password buttons for them.
+
+* **Changing your own password**: **Settings → Account → Password**. It asks for your current password, and the new one twice. Your other logins end; this browser stays signed in.
+* **Rules for new passwords**: at least 12 characters, not the username, and not the current password. The minimum is **Shortest new password** in **Server Settings → Sign-in** (`[auth]` `min_password_length`). Passwords already in use keep working until they are changed.
+* **New accounts** choose their own password at their first sign-in: **Must choose a new password at first login** is ticked when an admin makes the account, and can be unticked.
+* **Reset password**: in **Admin → Users**, on a Brum account. Either **Generate a random password** (shown once, with a Copy button) or **Set a password** (typed twice). **Must choose a new password at next login** is ticked by default. All of that person's logins end.
+* **Must choose a new password**: until it is done, the person sees only a **Choose a new password** box after signing in, with **Log out** as the only other choice. Brum refuses everything else from that login, also on the other machines in the Fleet and for the account's API tokens.
+* **First admin password**: a password Brum made up (at the first start, or with `brum reset-admin-password`) must be replaced at the next sign-in.
+* **Admins cannot lock themselves out**: an admin cannot remove their own admin role, disable their own account, or delete it. Another admin can.
+* Password changes, resets and refused tries are written to the **Activity Log**, never the passwords themselves.
 
 ## Browser Login Cookie
 

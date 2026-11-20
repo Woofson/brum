@@ -47,7 +47,7 @@ impl Srv {
         std::fs::create_dir_all(&home).unwrap();
         let resp = self.client.post(format!("{}/api/auth/users", self.base))
             .bearer_auth(&self.admin)
-            .json(&json!({ "username": name, "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home] }))
+            .json(&json!({ "username": name, "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home], "must_change_password": false }))
             .send().await.unwrap();
         assert!(resp.status().is_success(), "creating {} failed: {}", name, resp.text().await.unwrap());
         login(&self.client, &self.base, name, "UserPass123!").await

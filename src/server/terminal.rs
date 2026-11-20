@@ -140,6 +140,7 @@ pub fn extract_terminal_claims(
                 session_gen: 0,
                 sid: None,
                 origin: None,
+                pwc: false,
             });
         }
     } else if !state.config.server.enable_auth || state.config.server.standalone {
@@ -161,6 +162,7 @@ pub fn extract_terminal_claims(
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         });
     }
 

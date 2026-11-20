@@ -143,7 +143,8 @@ async fn test_rbac_admin_vs_regular_user() {
         .json(&json!({
             "username": user_name,
             "password": user_pass,
-            "role": "user"
+            "role": "user",
+            "must_change_password": false
         }))
         .send()
         .await
@@ -236,7 +237,8 @@ async fn test_user_disablement_revocation() {
         .json(&json!({
             "username": user_name,
             "password": user_pass,
-            "role": "user"
+            "role": "user",
+            "must_change_password": false
         }))
         .send()
         .await
@@ -360,9 +362,9 @@ async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_password_chan
 
     // 5. Changing the built-in admin's password removes it
     let change_resp = client
-        .post(format!("{}/api/auth/profile", base_url))
+        .post(format!("{}/api/auth/password", base_url))
         .bearer_auth(&token)
-        .json(&json!({ "new_password": "ChangedAdminPass456!" }))
+        .json(&json!({ "current_password": admin_pass, "new_password": "ChangedAdminPass456!" }))
         .send()
         .await
         .unwrap();

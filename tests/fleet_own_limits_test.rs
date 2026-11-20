@@ -44,7 +44,7 @@ async fn each_machine_applies_its_own_limits() {
     // carl may use everything on the main Brum, only his folder on the other machine
     for (port, roots) in [(pm, json!(["*"])), (pn, json!([s(&carl_home)]))] {
         let admin = login(port, "admin", "AdminSecretPass123!").await;
-        let st = c.post(format!("http://127.0.0.1:{port}/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": "carl", "password": "CarlSecretPass123!", "role": "user", "home_dir": s(&carl_home), "allowed_roots": roots })).send().await.unwrap().status();
+        let st = c.post(format!("http://127.0.0.1:{port}/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": "carl", "password": "CarlSecretPass123!", "role": "user", "home_dir": s(&carl_home), "allowed_roots": roots, "must_change_password": false })).send().await.unwrap().status();
         assert_eq!(st.as_u16(), 200);
     }
     let carl = login(pm, "carl", "CarlSecretPass123!").await;

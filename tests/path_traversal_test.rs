@@ -43,7 +43,7 @@ async fn add_user(srv: &Srv, admin: &str, name: &str) -> String {
     let home = home.to_string_lossy().to_string();
     let resp = srv.client.post(format!("{}/api/auth/users", srv.base))
         .bearer_auth(admin)
-        .json(&json!({ "username": name, "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home] }))
+        .json(&json!({ "username": name, "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home], "must_change_password": false }))
         .send().await.unwrap();
     assert!(resp.status().is_success());
     login(srv, name, "UserPass123!").await

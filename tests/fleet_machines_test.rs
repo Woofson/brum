@@ -114,7 +114,7 @@ async fn hand_written_machines_move_into_brum_and_are_managed_there() {
     assert!(listed.as_array().unwrap().iter().any(|n| n["name"] == "Media PC" && n["url"] == "http://192.0.2.20:3140"), "{listed}");
 
     // Only admins
-    let st = http.post(url("/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": "dana", "password": "DanaSecretPass123!", "role": "user", "home_dir": dir.path() })).send().await.unwrap().status();
+    let st = http.post(url("/api/auth/users")).bearer_auth(&admin).json(&json!({ "username": "dana", "password": "DanaSecretPass123!", "role": "user", "home_dir": dir.path(), "must_change_password": false })).send().await.unwrap().status();
     assert_eq!(st.as_u16(), 200);
     let dana = login(&http, port, "dana", "DanaSecretPass123!").await;
     assert_eq!(post(json!({ "name": "Sneaky", "urls": ["http://192.0.2.30:3140"] }), dana.clone()).await, 403);

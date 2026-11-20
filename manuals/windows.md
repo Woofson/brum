@@ -87,7 +87,7 @@ brum.exe --uninstall-service
 * On the very first start, Brum makes up a random password. It is shown once in the console window (a background service has none) and saved to a note next to the database:
   `C:\ProgramData\Brum\initial_admin_credentials.txt`
 * While that note exists, the login page shows where it is. The page never shows the password itself.
-* The note stays until the `admin` password is changed (avatar menu → **User Profile & Account Settings**). Logging in, including with a Windows administrator account, does not remove it.
+* At the first sign-in Brum asks for a new password. The note is removed once it is chosen. Logging in with a Windows administrator account does not remove it.
 * While the note exists, each start also writes its location to the log.
 
 ### Setting your own password in config.toml
@@ -101,7 +101,7 @@ Run this on the Brum machine, in PowerShell or CMD **opened as administrator**. 
 & "C:\Program Files\Brum\brum.exe" reset-admin-password
 ```
 With Scoop or the portable ZIP, `brum reset-admin-password` from the Brum folder works too.
-It gives `admin` a new made-up password, prints it, and saves it to the same note. If the `admin` account was disabled, it is turned back on. Running it ends every login that account had open.
+It gives `admin` a new made-up password, prints it, and saves it to the same note. If the `admin` account was disabled, it is turned back on. Running it ends every login that account had open. At the next sign-in Brum asks for a new password.
 
 ### Which config.toml is used
 Brum reads the **first** of these that exists and ignores the rest:

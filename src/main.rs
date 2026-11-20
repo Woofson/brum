@@ -271,7 +271,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         if let Some(note) = auth::first_login_note_path(&config.server.database_path) {
                             println!("Also saved in: {}", note.display());
                         }
-                        println!("Change it after signing in: avatar menu -> User Profile & Account Settings.");
+                        println!("Brum asks for a new password at the next sign-in.");
                     }
                     Err(e) => eprintln!("Could not reset the admin password: {}", e),
                 }

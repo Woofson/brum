@@ -131,6 +131,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/avatar/:username", get(handle_get_user_avatar))
         .route("/api/auth/users", get(handle_list_users).post(handle_create_user))
         .route("/api/auth/users/:username", delete(handle_delete_user).post(handle_update_user_rbac).put(handle_update_user_rbac))
+        .route("/api/auth/users/:username/password", post(auth_handlers::handle_reset_user_password))
+        .route("/api/auth/password", post(auth_handlers::handle_change_own_password))
         .route("/api/auth/tokens", get(handle_list_api_tokens).post(handle_create_api_token))
         .route("/api/auth/tokens/:id", delete(handle_revoke_api_token))
         // Transparent Encrypted Vaults API
@@ -505,6 +507,7 @@ mod tests {
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         };
 
         // 1. "roots_only" scheme returns None for personal home

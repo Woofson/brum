@@ -44,7 +44,7 @@ async fn manuals_open_for_admins_and_users_and_stay_read_only() {
     let home_s = home.to_string_lossy().to_string();
     let resp = client.post(format!("{}/api/auth/users", base))
         .bearer_auth(&admin)
-        .json(&json!({ "username": "bob", "password": "UserPass123!", "role": "user", "home_dir": home_s, "allowed_roots": [home_s] }))
+        .json(&json!({ "username": "bob", "password": "UserPass123!", "role": "user", "home_dir": home_s, "allowed_roots": [home_s], "must_change_password": false }))
         .send().await.unwrap();
     assert!(resp.status().is_success());
     let bob = login(&client, &base, "bob", "UserPass123!").await;

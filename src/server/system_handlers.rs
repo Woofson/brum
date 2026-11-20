@@ -84,6 +84,8 @@ pub struct SystemStatusResponse {
     pub window_title: Option<String>,
     pub login_title: Option<String>,
     pub login_subtitle_template: Option<String>,
+    /// The shortest new password a Brum account may choose (#205)
+    pub min_password_length: usize,
 }
 
 /// This machine's name as people and other Fleet machines see it: the badge text from Server
@@ -183,6 +185,7 @@ pub async fn handle_system_status(State(state): State<AppState>, headers: Header
         window_title,
         login_title: ui.login_title.as_deref().and_then(some),
         login_subtitle_template: ui.login_subtitle_template.as_deref().and_then(some),
+        min_password_length: state.config.auth.min_password_length,
     })
 }
 

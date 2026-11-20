@@ -235,7 +235,7 @@ async fn compressed_disk_and_squashfs_images_open() {
     // Only admins may change it
     let home = srv.home.to_string_lossy().to_string();
     let resp = srv.client.post(format!("{}/api/auth/users", srv.base)).bearer_auth(&srv.admin)
-        .json(&json!({ "username": "bob", "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home] }))
+        .json(&json!({ "username": "bob", "password": "UserPass123!", "role": "user", "home_dir": home, "allowed_roots": [home], "must_change_password": false }))
         .send().await.unwrap();
     assert!(resp.status().is_success());
     let bob: Value = srv.client.post(format!("{}/api/auth/login", srv.base))

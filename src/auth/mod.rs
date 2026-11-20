@@ -168,6 +168,10 @@ pub struct Claims {
     /// account's session generation, so only it compares `session_gen`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
+    /// The account must choose a new password first (#205). Every machine that sees this login,
+    /// including other Fleet machines, refuses everything except choosing the password.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pwc: bool,
 }
 
 fn default_allowed_roots_claims() -> Option<String> {
@@ -245,6 +249,27 @@ fn login_signing_purpose(conn: &Connection) -> Result<String, Box<dyn std::error
         let _ = conn;
         Ok("login-signing".to_string())
     }
+}
+
+/// The rules every new password of a Brum account must follow (#205): long enough, not the
+/// account name, and not the password it replaces. Passwords already in use keep working.
+pub fn check_password_policy(password: &str, username: &str, previous: Option<&str>, min_length: usize) -> Result<(), String> {
+    if password.chars().count() < min_length {
+        return Err(format!("Password must be at least {} characters", min_length));
+    }
+    if password.trim().eq_ignore_ascii_case(username.trim()) {
+        return Err("Password must not be the username".into());
+    }
+    if previous == Some(password) {
+        return Err("New password must differ from the current one".into());
+    }
+    Ok(())
+}
+
+/// Accounts whose password Brum does not keep: the computer's own accounts (Linux, Windows)
+/// and single sign-on accounts. Their password is changed where it is managed.
+pub fn password_managed_elsewhere(user: &User) -> bool {
+    user.is_pam || matches!(user.auth_source.as_deref(), Some("pam" | "windows" | "oidc"))
 }
 
 /// A made-up 20-character password for the built-in admin.
@@ -356,6 +381,8 @@ impl AuthManager {
         )?;
         let _ = conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN bio TEXT", []);
+        // #205: the account must choose a new password at its next sign-in
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS global_mounts (
@@ -667,6 +694,8 @@ impl AuthManager {
             auth.create_user(default_admin_user, &effective_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
 
             if is_generated_pass {
+                // A password that was shown on the screen and written to a file is replaced at first sign-in (#205)
+                auth.set_must_change_password(default_admin_user, true)?;
                 // The password goes to the screen and the one-time note only, never into the log files
                 let note = crate::logging::credentials_note_dir(db_path)
                     .and_then(|dir| crate::logging::write_initial_admin_credentials(&dir, default_admin_user, &effective_admin_pass).ok())
@@ -678,7 +707,7 @@ impl AuthManager {
                 if let Some(p) = &note {
                     println!("    Saved in : {}", p.display());
                 }
-                println!("    Change it after signing in: avatar menu → User Profile & Account Settings.");
+                println!("    Brum asks for a new password when you first sign in.");
                 if note.is_some() {
                     println!("    The file is removed once you do.");
                 }
@@ -702,7 +731,7 @@ impl AuthManager {
     fn log_first_login_reminders(&self, admin_user: &str, config_pass: &str) {
         if let Some(note) = first_login_note_path(&self.db_path) {
             info!(
-                "The first admin password for '{}' is still in: {} (removed once you change it in User Profile & Account Settings)",
+                "The first admin password for '{}' is still in: {} (removed once a new password is chosen)",
                 admin_user,
                 std::fs::canonicalize(&note).unwrap_or(note.clone()).display()
             );
@@ -754,6 +783,8 @@ impl AuthManager {
                 self.create_user(admin_user, &pass, "admin", &home, Some("[\"*\"]"))?;
             }
         }
+        // Shown on the screen and written to a file: chosen anew at the next sign-in (#205)
+        self.set_must_change_password(admin_user, true)?;
         if let Some(note_dir) = crate::logging::credentials_note_dir(&self.db_path) {
             crate::logging::write_initial_admin_credentials(&note_dir, admin_user, &pass)?;
         }
@@ -1139,6 +1170,35 @@ impl AuthManager {
         Ok(true)
     }
 
+    /// Whether the account must choose a new password before doing anything else (#205)
+    pub fn must_change_password(&self, username: &str) -> bool {
+        self.get_read_conn().ok().and_then(|conn| {
+            conn.query_row(
+                "SELECT must_change_password FROM users WHERE username = ?1",
+                params![username],
+                |row| row.get::<_, Option<i64>>(0),
+            ).optional().ok().flatten().flatten()
+        }).unwrap_or(0) != 0
+    }
+
+    pub fn set_must_change_password(&self, username: &str, on: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        conn.execute("UPDATE users SET must_change_password = ?1 WHERE username = ?2", params![on as i64, username])?;
+        Ok(())
+    }
+
+    /// Whether this is the account's password now (only for Brum's own accounts)
+    pub fn verify_own_password(&self, username: &str, password: &str) -> bool {
+        let hash: Option<String> = self.get_read_conn().ok().and_then(|conn| {
+            conn.query_row("SELECT password_hash FROM users WHERE username = ?1", params![username], |row| row.get(0))
+                .optional().ok().flatten()
+        });
+        hash.as_deref()
+            .and_then(|h| PasswordHash::new(h).ok())
+            .map(|h| Argon2::default().verify_password(password.as_bytes(), &h).is_ok())
+            .unwrap_or(false)
+    }
+
     pub fn update_user_password(
         &self,
         username: &str,
@@ -1512,6 +1572,7 @@ impl AuthManager {
             session_gen: self.session_generation(&user.username)?,
             sid: Some(sid),
             origin: Some(self.machine_id.clone()),
+            pwc: self.must_change_password(&user.username),
         };
 
         let token = encode(
@@ -1575,6 +1636,7 @@ impl AuthManager {
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         };
 
         let raw_token = encode(
@@ -3370,6 +3432,30 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    fn a_generated_first_admin_password_must_be_replaced() {
+        let tmp = tempdir().unwrap();
+        // No password in config.toml: Brum makes one up and shows it once
+        let path = tmp.path().join("gen.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "", 24, "mixed", "login", "admin", "").unwrap();
+        assert!(auth.must_change_password("admin"));
+        // A password the owner wrote in config.toml is theirs already
+        let path = tmp.path().join("own.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "", 24, "mixed", "login", "admin", "Own-Admin-Pass-1").unwrap();
+        assert!(!auth.must_change_password("admin"));
+        // brum reset-admin-password: shown on the screen, so chosen anew at the next sign-in
+        auth.reset_admin_password("admin").unwrap();
+        assert!(auth.must_change_password("admin"));
+    }
+
+    #[test]
+    fn password_rules() {
+        assert!(check_password_policy("long-enough-pass", "carol", None, 12).is_ok());
+        assert!(check_password_policy("short", "carol", None, 12).is_err());
+        assert!(check_password_policy("CarolCarolCarol", "carolcarolcarol", None, 12).is_err());
+        assert!(check_password_policy("same-old-password", "carol", Some("same-old-password"), 12).is_err());
+    }
+
+    #[test]
     fn computer_checked_accounts_get_fewer_wrong_passwords() {
         let tmp = tempdir().unwrap();
         let system = if cfg!(windows) { (3, 900) } else { (2, 900) };
@@ -3465,7 +3551,7 @@ mod tests {
             let claims = Claims {
                 sub: user.into(), role: role.into(), home_dir: "/elsewhere".into(), is_pam: true,
                 allowed_roots: Some("[\"/elsewhere\"]".into()), token_id: None, exp: Utc::now().timestamp() + 3600,
-                shell: None, session_gen: 0, sid: Some("s1".into()), origin: Some(main.machine_id.clone()),
+                shell: None, session_gen: 0, sid: Some("s1".into()), origin: Some(main.machine_id.clone()), pwc: false,
             };
             main.mint_token_for_claims(&claims).unwrap()
         };

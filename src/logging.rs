@@ -204,7 +204,7 @@ pub fn write_initial_admin_credentials(
          Username  : {}\n\
          Password  : {}\n\n\
          SECURITY NOTICE:\n\
-         - Sign in and change this password: avatar menu -> User Profile & Account Settings.\n\
+         - Sign in with it: Brum then asks you to choose a new password.\n\
          - Alternatively, log in with any local Windows / Linux Administrator account.\n\
          - Brum removes this file once the password has been changed.\n\
         ================================================================================\n",

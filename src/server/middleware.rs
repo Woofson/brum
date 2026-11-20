@@ -329,6 +329,13 @@ pub(crate) fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&bytes_out).to_string()
 }
 
+/// What an account that must choose a new password may still do: choose it, sign out, and what
+/// the page needs to show the "Choose a new password" box (#205)
+fn allowed_before_new_password(path: &str, method: &axum::http::Method) -> bool {
+    matches!(path, "/api/auth/password" | "/api/auth/logout" | "/api/auth/me" | "/api/system/status" | "/api/health")
+        || (method == axum::http::Method::GET && matches!(path, "/api/config" | "/api/user/preferences"))
+}
+
 pub async fn auth_middleware(
     State(state): State<AppState>,
     mut req: axum::extract::Request,
@@ -404,6 +411,7 @@ pub async fn auth_middleware(
                 session_gen: 0,
                 sid: None,
                 origin: None,
+                pwc: false,
             };
             req.extensions_mut().insert(claims);
 
@@ -473,6 +481,7 @@ pub async fn auth_middleware(
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         };
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
@@ -579,6 +588,18 @@ pub async fn auth_middleware(
                 req.headers_mut().insert(header::AUTHORIZATION, hv);
             }
         }
+        // #205: an account that must choose a new password can do nothing else first. The login
+        // carries the mark, so other Fleet machines refuse too; API tokens are checked here.
+        let must_change = claims.pwc || (claims.token_id.is_some() && state.auth.must_change_password(&claims.sub));
+        if must_change && !allowed_before_new_password(&path, req.method()) && !is_pub {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({
+                    "error": "You must choose a new password before continuing",
+                    "code": "password_change_required"
+                })),
+            ));
+        }
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
     }
@@ -680,6 +701,7 @@ pub fn extract_claims_or_local(
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         });
     }
 
@@ -1827,6 +1849,7 @@ mod tests {
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         };
         assert!(rclone_remote_allowed(&user("admin", "[]"), "jotta"));
         assert!(rclone_remote_allowed(&user("user", r#"["remote"]"#), "jotta"));

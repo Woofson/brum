@@ -205,6 +205,7 @@ pub fn extract_fleet_claims(
             session_gen: 0,
             sid: None,
             origin: None,
+            pwc: false,
         });
     }
 

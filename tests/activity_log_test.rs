@@ -42,7 +42,7 @@ async fn changes_are_recorded_for_admins() {
     };
 
     // An account that may only use its own folder
-    assert_eq!(post(admin.clone(), "/api/auth/users", json!({ "username": "bob", "password": "BobSecretPass123!", "role": "user", "home_dir": s(bob_home.clone()), "allowed_roots": [s(bob_home.clone())] })).await, 200);
+    assert_eq!(post(admin.clone(), "/api/auth/users", json!({ "username": "bob", "password": "BobSecretPass123!", "role": "user", "home_dir": s(bob_home.clone()), "allowed_roots": [s(bob_home.clone())], "must_change_password": false })).await, 200);
     let bob = login("bob", "BobSecretPass123!").await;
 
     // Changes by the admin

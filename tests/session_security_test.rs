@@ -63,9 +63,9 @@ async fn test_password_change_ends_other_sessions() {
     let other_device = login(&client, &base, ADMIN_PASS).await;
     let this_device = login(&client, &base, ADMIN_PASS).await;
 
-    let resp = client.post(format!("{}/api/auth/profile", base))
+    let resp = client.post(format!("{}/api/auth/password", base))
         .header("Authorization", format!("Bearer {}", this_device))
-        .json(&json!({ "new_password": "BrandNewPass456!" }))
+        .json(&json!({ "current_password": ADMIN_PASS, "new_password": "BrandNewPass456!" }))
         .send().await.unwrap();
     assert_eq!(resp.status(), reqwest::StatusCode::OK);
     let body: serde_json::Value = resp.json().await.unwrap();
