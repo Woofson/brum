@@ -25827,6 +25827,7 @@ async function submitUnlockSession() {
 
   try {
     let unlocked = false;
+    let refusal = '';
 
     const authHeaders = { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS };
 
@@ -25858,8 +25859,13 @@ async function submitUnlockSession() {
         } catch (_) {}
       }
       unlocked = true;
-    } else if (resp.status === 404 || resp.status === 400 || resp.status === 401) {
-      // 2. Fallback to /api/auth/login if /api/auth/unlock endpoint is not available
+    } else if (resp.status === 429) {
+      // Too many wrong passwords: show Brum's explanation of the pause
+      refusal = (await resp.text().catch(() => '')).trim();
+    } else if (resp.status === 404 || resp.status === 400) {
+      // 2. Fallback to /api/auth/login only when /api/auth/unlock is missing (an older Brum).
+      // Never after a wrong password (401): sending it again counts as one more failed
+      // login for the computer, and Windows or Linux can lock the account.
       const loginResp = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS },
@@ -25882,6 +25888,8 @@ async function submitUnlockSession() {
           localStorage.setItem('cd_last_username', data.user?.username);
         } catch (_) {}
         unlocked = true;
+      } else if (loginResp.status === 429) {
+        refusal = (await loginResp.text().catch(() => '')).trim();
       }
     }
 
@@ -25910,7 +25918,7 @@ async function submitUnlockSession() {
       showToast('Session unlocked. Welcome back!', 'success');
     } else {
       if (errMsg) {
-        errMsg.textContent = 'Invalid password. Please try again.';
+        errMsg.textContent = refusal || 'Invalid password. Please try again.';
         errMsg.style.display = 'block';
       }
       passIn?.select();
@@ -26496,9 +26504,13 @@ async function handleLoginSubmit() {
     } else {
       let errMsg = 'Invalid username or password.';
       try {
-        const errJson = await resp.json();
+        const body = (await resp.text()).trim();
+        let errJson = null;
+        try { errJson = JSON.parse(body); } catch (_) {}
         if (errJson && errJson.message) errMsg = errJson.message;
         else if (typeof errJson === 'string') errMsg = errJson;
+        // Brum's own "please wait" notes come as plain text
+        else if (resp.status === 429 && body) errMsg = body;
       } catch (_) {}
       if (err) {
         err.style.display = 'block';

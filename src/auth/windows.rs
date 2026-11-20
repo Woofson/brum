@@ -77,9 +77,46 @@ pub fn describe_logon_error(code: u32) -> &'static str {
         1355 => "domain not found",
         1311 => "no sign-in server available (offline, and no saved sign-in for this account)",
         1909 => "account is locked out",
+        1793 => "account has expired",
         1907 => "password must be changed before signing in",
         _ => "other Windows error",
     }
+}
+
+/// What to do after Windows refused one sign-in try.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AfterRefusal {
+    /// Ask again for the same name as an interactive sign-in (only when the network
+    /// kind is not allowed, or Windows could not check it at all, for example offline).
+    TryInteractive,
+    /// Windows checked the password and said no: skip to the next way of writing the
+    /// name, if any. Asking the same name again would be one more failed login.
+    NextName,
+    /// The account is locked, disabled, expired or barred: stop asking.
+    Stop,
+}
+
+/// Every try Windows turns down counts toward its account lockout (10 by default on
+/// Windows 11), so Brum only asks again when the refusal was not about the password.
+pub fn after_refusal(code: u32, interactive: bool) -> AfterRefusal {
+    match code {
+        // locked out, disabled, expired, must change password, restriction, logon hours, workstation
+        1909 | 1331 | 1330 | 1907 | 1327 | 1328 | 1329 | 1793 => AfterRefusal::Stop,
+        1326 => AfterRefusal::NextName,
+        _ if interactive => AfterRefusal::NextName,
+        // 1385/1387 (network sign-in not granted), 1311 (offline: only interactive
+        // sign-in knows saved logins), and anything unexpected
+        _ => AfterRefusal::TryInteractive,
+    }
+}
+
+/// The way of asking Windows that worked last time for a typed name, so later sign-ins
+/// (and the lock screen) ask once instead of going through every way again.
+#[cfg(windows)]
+fn remembered_logons() -> &'static std::sync::Mutex<std::collections::HashMap<String, (Option<String>, String, bool)>> {
+    static CELL: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (Option<String>, String, bool)>>> =
+        std::sync::OnceLock::new();
+    CELL.get_or_init(Default::default)
 }
 
 /// Resolves the home directory for a Windows user.
@@ -197,11 +234,20 @@ pub fn authenticate_windows_user(
     let mut clean_username = String::new();
     let mut refusals: Vec<u32> = Vec::new();
 
-    // Try each way of handing the name to Windows; each with a network sign-in
-    // first, then an interactive one. Every refusal is logged with its reason.
-    'outer: for (domain_opt, name) in windows_logon_candidates(username) {
+    // The ways to try: the one that worked last time for this name alone, else each way of
+    // handing the name to Windows, with a network sign-in first. Windows counts every refusal
+    // toward locking the account, so after "wrong password" a name is never asked again.
+    let memory_key = username.trim().to_lowercase();
+    let remembered = remembered_logons().lock().ok().and_then(|m| m.get(&memory_key).cloned());
+    let from_memory = remembered.is_some();
+    let plan: Vec<(Option<String>, String, bool)> = match remembered {
+        Some(way) => vec![way],
+        None => windows_logon_candidates(username).into_iter().map(|(d, n)| (d, n, false)).collect(),
+    };
+
+    let pass_wide = to_wide_null(password);
+    'outer: for (domain_opt, name, start_interactive) in plan {
         let user_wide = to_wide_null(&name);
-        let pass_wide = to_wide_null(password);
         let domain_wide: Option<Vec<u16>> = domain_opt.as_deref().map(to_wide_null);
         let domain_ptr = match domain_wide.as_ref() {
             Some(w) => w.as_ptr(),
@@ -212,7 +258,13 @@ pub fn authenticate_windows_user(
             None => name.clone(),
         };
 
-        for (kind, logon_type) in [("network", LOGON32_LOGON_NETWORK), ("interactive", LOGON32_LOGON_INTERACTIVE)] {
+        let mut interactive = start_interactive;
+        loop {
+            let (kind, logon_type) = if interactive {
+                ("interactive", LOGON32_LOGON_INTERACTIVE)
+            } else {
+                ("network", LOGON32_LOGON_NETWORK)
+            };
             let ok = unsafe {
                 LogonUserW(
                     user_wide.as_ptr(),
@@ -226,6 +278,9 @@ pub fn authenticate_windows_user(
             if ok != 0 && token_handle != (0 as HANDLE) {
                 info!(tried_as = %shown, sign_in = kind, "Windows accepted the sign-in");
                 clean_username = name.split('@').next().unwrap_or(&name).to_string();
+                if let Ok(mut m) = remembered_logons().lock() {
+                    m.insert(memory_key.clone(), (domain_opt.clone(), name.clone(), interactive));
+                }
                 logged_on = true;
                 break 'outer;
             }
@@ -238,6 +293,19 @@ pub fn authenticate_windows_user(
                 reason = describe_logon_error(err_code),
                 "Windows refused the sign-in"
             );
+            match after_refusal(err_code, interactive) {
+                AfterRefusal::TryInteractive => interactive = true,
+                AfterRefusal::NextName => break,
+                AfterRefusal::Stop => break 'outer,
+            }
+        }
+    }
+
+    // The remembered way stopped working for a reason other than the password (for example
+    // the account's sign-in rights changed): forget it, so the next sign-in tries every way.
+    if !logged_on && from_memory && !refusals.iter().any(|&c| matches!(after_refusal(c, true), AfterRefusal::Stop) || c == 1326) {
+        if let Ok(mut m) = remembered_logons().lock() {
+            m.remove(&memory_key);
         }
     }
 
@@ -342,6 +410,46 @@ pub fn authenticate_windows_user(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wrong_password_is_never_asked_again_for_the_same_name() {
+        // Wrong password: never retried as an interactive sign-in (each try counts toward lockout)
+        assert_eq!(after_refusal(1326, false), AfterRefusal::NextName);
+        assert_eq!(after_refusal(1326, true), AfterRefusal::NextName);
+        // Locked, disabled, expired, must change password: stop at once
+        for code in [1909, 1331, 1330, 1793, 1907, 1327, 1328, 1329] {
+            assert_eq!(after_refusal(code, false), AfterRefusal::Stop, "code {code}");
+            assert_eq!(after_refusal(code, true), AfterRefusal::Stop, "code {code}");
+        }
+        // Network sign-in not granted, or offline: the interactive kind may work
+        for code in [1385, 1387, 1311] {
+            assert_eq!(after_refusal(code, false), AfterRefusal::TryInteractive, "code {code}");
+            assert_eq!(after_refusal(code, true), AfterRefusal::NextName, "code {code}");
+        }
+    }
+
+    #[test]
+    fn plain_name_wrong_password_costs_one_windows_failure() {
+        // Walk the plan as the sign-in does, with Windows always saying "wrong password"
+        let count = |input: &str| {
+            let mut tries = 0;
+            for _ in windows_logon_candidates(input) {
+                let mut interactive = false;
+                loop {
+                    tries += 1;
+                    match after_refusal(1326, interactive) {
+                        AfterRefusal::TryInteractive => interactive = true,
+                        AfterRefusal::NextName => break,
+                        AfterRefusal::Stop => return tries,
+                    }
+                }
+            }
+            tries
+        };
+        assert_eq!(count("bolt"), 1);
+        assert_eq!(count(r"HAWK\bolt"), 1);
+        assert_eq!(count("me@mail.com"), 2, "both ways of writing a Microsoft account, once each");
+    }
 
     #[test]
     fn test_windows_logon_candidates() {

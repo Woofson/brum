@@ -151,6 +151,31 @@ fn urlencoding_simple(s: &str) -> String {
     encoded
 }
 
+/// The key for one account's wrong-password count. The login page and the lock screen share it.
+fn account_guard_key(username: &str) -> String {
+    format!("login:user:{}", username.trim().to_lowercase())
+}
+
+/// Counts a password try for an account before it is checked, or refuses it when the account
+/// has had too many wrong passwords lately. A correct password clears the count again.
+/// Counting before checking means tries sent at the same moment can't slip past the limit,
+/// so the computer never sees more failed logins than the limit allows.
+fn account_guard_try(state: &AppState, username: &str) -> Result<(), String> {
+    let (tries, window) = state.auth.wrong_password_limit(username.trim());
+    state.rate_limiter
+        .check_and_record(&account_guard_key(username), tries, window)
+        .map_err(|retry_after| {
+            tracing::warn!(username = %username, tries, "Too many wrong passwords for this account; pausing sign-in tries");
+            let minutes = retry_after.div_ceil(60);
+            format!(
+                "Too many wrong passwords for this account. To keep the computer from locking the account, \
+                 Brum pauses sign-in tries for {} minute{}.",
+                minutes,
+                if minutes == 1 { "" } else { "s" }
+            )
+        })
+}
+
 pub async fn handle_login(
     State(state): State<AppState>,
     connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
@@ -168,14 +193,10 @@ pub async fn handle_login(
         ));
     }
 
-    // Per-username lockout (protect individual account from distributed brute-force)
-    let user_rate_key = format!("login:user:{}", payload.username.to_lowercase());
-    if let Err(retry_after) = state.rate_limiter.check(&user_rate_key, 10, 300) {
-        tracing::error!(username = %payload.username, "Rate limit exceeded for user account: repeated login attempts");
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            format!("Too many failed login attempts for this account. Please retry after {} seconds.", retry_after),
-        ));
+    // Per-account limit on wrong passwords, shared with the lock screen
+    let user_rate_key = account_guard_key(&payload.username);
+    if let Err(msg) = account_guard_try(&state, &payload.username) {
+        return Err((StatusCode::TOO_MANY_REQUESTS, msg));
     }
 
     tracing::info!("Received login request for user '{}'...", payload.username);
@@ -183,7 +204,6 @@ pub async fn handle_login(
     // Enforce private instance owner isolation
     if let Some(ref inst) = state.instance_info {
         if payload.username.to_lowercase() != inst.owner.to_lowercase() {
-            state.rate_limiter.record(&user_rate_key, 300);
             tracing::warn!(
                 "Rejected login attempt by user '{}' on private instance owned by '{}'",
                 payload.username, inst.owner
@@ -271,7 +291,6 @@ pub async fn handle_login(
             Ok(make_login_response(token, user))
         }
         Err(e) => {
-            state.rate_limiter.record(&user_rate_key, 300);
             tracing::warn!(username = %payload.username, error = %e, "Authentication failed");
             Err((StatusCode::UNAUTHORIZED, "Invalid username or password".to_string()))
         }
@@ -872,6 +891,10 @@ pub async fn handle_unlock_session(
         }
     };
 
+    if let Err(msg) = account_guard_try(&state, &uname) {
+        return Err((StatusCode::TOO_MANY_REQUESTS, msg));
+    }
+
     tracing::info!("Processing session unlock request for user '{}'...", uname);
     let auth = state.auth.clone();
     let u = uname.clone();
@@ -885,6 +908,7 @@ pub async fn handle_unlock_session(
     match auth_res {
         Ok(user) => {
             state.rate_limiter.reset(&rate_key);
+            state.rate_limiter.reset(&account_guard_key(&uname));
             tracing::info!("Session unlocked successfully for user '{}'", user.username);
             let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
             let max_age_secs = state.config.server.session_duration_hours * 3600;

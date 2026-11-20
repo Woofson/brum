@@ -556,8 +556,9 @@ async fn test_unlock_and_share_separate_rate_limit_buckets_per_peer() {
     let login_json: serde_json::Value = login_resp.json().await.unwrap();
     let token = login_json["token"].as_str().unwrap();
 
-    // 2. Peer A performs 10 failed unlock attempts
-    for _ in 0..10 {
+    // 2. Peer A uses up its 10 unlock attempts: 9 wrong passwords for the account (under the
+    // account's own limit of 10, shared by all peers), then one that names no account at all
+    for _ in 0..9 {
         let resp = client
             .post(format!("{}/api/auth/unlock", base_url))
             .header("Authorization", format!("Bearer {}", token))
@@ -568,6 +569,14 @@ async fn test_unlock_and_share_separate_rate_limit_buckets_per_peer() {
             .unwrap();
         assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
     }
+    let resp = client
+        .post(format!("{}/api/auth/unlock", base_url))
+        .header("X-Forwarded-For", "198.51.100.10")
+        .json(&json!({ "password": "WrongPasswordAttempt!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
 
     // 11th attempt from Peer A must be rate-limited (429)
     let peer_a_limited = client
@@ -706,3 +715,80 @@ async fn test_subdomain_wildcard_and_overlay_origin_matching() {
     assert!(!is_ws_origin_allowed("null", &headers, &state));
 }
 
+
+/// Accounts the computer checks (or names Brum doesn't know) get only 2 wrong passwords
+/// (3 on Windows) before Brum pauses, so Linux or Windows never lock the account themselves.
+#[tokio::test]
+async fn test_system_account_paused_before_the_computer_locks_it() {
+    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+    let allowed = if cfg!(windows) { 3 } else { 2 };
+
+    for _ in 0..allowed {
+        let resp = client
+            .post(format!("{}/api/auth/login", base_url))
+            .json(&json!({ "username": "no_such_account_here", "password": "Wrong-1!" }))
+            .send().await.unwrap();
+        assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+    let resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .json(&json!({ "username": "No_Such_Account_Here", "password": "Wrong-1!" }))
+        .send().await.unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::TOO_MANY_REQUESTS, "capitals must not get a fresh count");
+    let text = resp.text().await.unwrap();
+    assert!(text.contains("Too many wrong passwords for this account"), "{text}");
+    assert!(text.contains("minutes"), "{text}");
+}
+
+/// The lock screen and the login page share one wrong-password count per account,
+/// and the right password clears it.
+#[tokio::test]
+async fn test_lock_screen_and_login_share_the_wrong_password_count() {
+    let (port, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+    let login = |pass: String| {
+        let client = client.clone();
+        let url = format!("{}/api/auth/login", base_url);
+        let user = admin_user.clone();
+        async move { client.post(url).json(&json!({ "username": user, "password": pass })).send().await.unwrap() }
+    };
+
+    let resp = login(admin_pass.clone()).await;
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+    let token = resp.json::<serde_json::Value>().await.unwrap()["token"].as_str().unwrap().to_string();
+    let unlock = |pass: &str| {
+        client.post(format!("{}/api/auth/unlock", base_url))
+            .header("Authorization", format!("Bearer {}", token))
+            .json(&json!({ "password": pass }))
+            .send()
+    };
+
+    // Brum's own account: 10 wrong passwords, 6 on the login page and 4 on the lock screen
+    for _ in 0..6 {
+        assert_eq!(login("Wrong-1!".into()).await.status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+    for _ in 0..4 {
+        assert_eq!(unlock("Wrong-1!").await.unwrap().status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+    // The 11th is paused on both
+    assert_eq!(unlock(&admin_pass).await.unwrap().status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(login(admin_pass.clone()).await.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[tokio::test]
+async fn test_right_password_clears_the_wrong_password_count() {
+    let (port, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let url = format!("http://127.0.0.1:{}/api/auth/login", port);
+    let send = |pass: &str| client.post(&url).json(&json!({ "username": admin_user, "password": pass })).send();
+
+    for _ in 0..9 {
+        assert_eq!(send("Wrong-1!").await.unwrap().status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+    assert_eq!(send(&admin_pass).await.unwrap().status(), reqwest::StatusCode::OK);
+    // A fresh count: another wrong password is just wrong, not paused
+    assert_eq!(send("Wrong-1!").await.unwrap().status(), reqwest::StatusCode::UNAUTHORIZED);
+}

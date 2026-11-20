@@ -1228,6 +1228,30 @@ impl AuthManager {
         Ok(affected > 0)
     }
 
+    /// How many wrong passwords in a row Brum accepts for an account before it pauses,
+    /// as (tries, seconds). Brum's own accounts: 10 in 5 minutes. Accounts checked by the
+    /// computer (Linux or Windows logins, and names Brum does not know): far fewer, because
+    /// the computer counts every failure too and can lock the account itself (Windows 11
+    /// after 10 by default, Arch Linux's pam_faillock after 3).
+    pub fn wrong_password_limit(&self, username: &str) -> (usize, u64) {
+        const OWN_ACCOUNT: (usize, u64) = (10, 300);
+        const SYSTEM_ACCOUNT: (usize, u64) = if cfg!(windows) { (3, 900) } else { (2, 900) };
+        if self.auth_mode == "builtin" {
+            return OWN_ACCOUNT;
+        }
+        let own = self.db.lock().ok().and_then(|conn| {
+            conn.query_row(
+                "SELECT is_pam, password_hash FROM users WHERE username = ?1",
+                params![username],
+                |row| Ok((row.get::<_, Option<i64>>(0)?.unwrap_or(0) != 0, row.get::<_, String>(1)?)),
+            ).optional().ok().flatten()
+        });
+        match own {
+            Some((false, hash)) if hash != "PAM_MANAGED" && hash != "WINDOWS_MANAGED" && self.auth_mode == "mixed" => OWN_ACCOUNT,
+            _ => SYSTEM_ACCOUNT,
+        }
+    }
+
     pub fn authenticate(
         &self,
         username: &str,
@@ -1348,7 +1372,17 @@ impl AuthManager {
                 }
 
                 for svc in services {
-                    if pam::authenticate(&svc, username, password).is_ok() {
+                    let attempt = pam::authenticate(&svc, username, password);
+                    if let Err(ref failure) = attempt {
+                        // A service that checked the password and said no ends the search: every
+                        // further try is one more failed login for the machine, which can lock the account.
+                        if failure.is_final() {
+                            tracing::warn!(service = %svc, reason = %failure, "Linux refused the sign-in; not trying other login services");
+                            break;
+                        }
+                        continue;
+                    }
+                    {
                         // Cache the verified working PAM service for instantaneous future unlocks
                         if let Ok(mut guard) = self.cached_pam_service.write() {
                             *guard = Some(svc.clone());
@@ -3334,6 +3368,35 @@ pub fn get_linux_user_info(username: &str) -> (String, String) {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn computer_checked_accounts_get_fewer_wrong_passwords() {
+        let tmp = tempdir().unwrap();
+        let system = if cfg!(windows) { (3, 900) } else { (2, 900) };
+        let path = tmp.path().join("mixed.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "", 24, "mixed", "login", "admin", "S0me-Admin-Pass!").unwrap();
+        assert_eq!(auth.wrong_password_limit("admin"), (10, 300), "Brum's own account");
+        assert_eq!(auth.wrong_password_limit("someone-unknown"), system, "may be a Linux or Windows login");
+        {
+            let db = auth.db();
+            let conn = db.lock().unwrap();
+            conn.execute(
+                "INSERT INTO users (username, password_hash, role, home_dir, is_pam, is_disabled, created_at) VALUES ('linuxer', 'PAM_MANAGED', 'user', '/home/linuxer', 1, 0, '')",
+                [],
+            ).unwrap();
+        }
+        assert_eq!(auth.wrong_password_limit("linuxer"), system, "a system login Brum has seen before");
+
+        // Only system logins (pam mode): even Brum's admin row is not checked by Brum
+        let path = tmp.path().join("pam.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "", 24, "pam", "login", "admin", "S0me-Admin-Pass!").unwrap();
+        assert_eq!(auth.wrong_password_limit("admin"), system);
+
+        // Only Brum's own accounts: nothing reaches the computer
+        let path = tmp.path().join("builtin.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "", 24, "builtin", "login", "admin", "S0me-Admin-Pass!").unwrap();
+        assert_eq!(auth.wrong_password_limit("someone-unknown"), (10, 300));
+    }
 
     #[test]
     fn node_local_login_secret_is_not_kept_in_the_database() {

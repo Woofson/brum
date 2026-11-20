@@ -15,6 +15,8 @@ const PAM_PROMPT_ECHO_ON: c_int = 2;
 const PAM_CONV_ERR: c_int = 19;
 #[cfg(target_os = "linux")]
 const PAM_BUF_ERR: c_int = 5;
+#[cfg(target_os = "linux")]
+const PAM_AUTH_ERR: c_int = 7;
 
 #[cfg(target_os = "linux")]
 #[repr(C)]
@@ -101,8 +103,37 @@ unsafe extern "C" fn pam_conversation_cb(
     PAM_SUCCESS
 }
 
+/// Why a PAM sign-in did not succeed. `code` is PAM's own result number, when PAM got that far.
+#[derive(Debug, Clone)]
+pub struct PamFailure {
+    pub code: Option<i32>,
+    pub message: String,
+}
+
+impl PamFailure {
+    fn setup(message: impl Into<String>) -> Self {
+        Self { code: None, message: message.into() }
+    }
+
+    /// True when this login service did its job and said no (for example a wrong password,
+    /// a locked or expired account). Trying more services then only adds failed logins on the
+    /// machine, which can lock the account (pam_faillock). False when the service itself could
+    /// not be used (missing, broken, does not know the account), so another one may be tried.
+    pub fn is_final(&self) -> bool {
+        // 1 open, 2 symbol, 3 service, 4 system, 5 buffer, 9 auth info unavailable,
+        // 10 user unknown, 19 conversation, 26 abort
+        !matches!(self.code, None | Some(1 | 2 | 3 | 4 | 5 | 9 | 10 | 19 | 26))
+    }
+}
+
+impl std::fmt::Display for PamFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
 #[cfg(target_os = "linux")]
-pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(), String> {
+pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(), PamFailure> {
     unsafe {
         let lib_names = [
             "libpam.so.0",
@@ -128,7 +159,7 @@ pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(),
         }
 
         if handle.is_null() {
-            return Err("PAM shared library (libpam.so.0) not found on system".to_string());
+            return Err(PamFailure::setup("PAM shared library (libpam.so.0) not found on system"));
         }
 
         let pam_start_sym = libc::dlsym(handle, b"pam_start\0".as_ptr() as *const c_char);
@@ -139,7 +170,7 @@ pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(),
 
         if pam_start_sym.is_null() || pam_authenticate_sym.is_null() || pam_end_sym.is_null() {
             libc::dlclose(handle);
-            return Err("Failed to resolve PAM symbols from libpam.so.0".to_string());
+            return Err(PamFailure::setup("Failed to resolve PAM symbols from libpam.so.0"));
         }
 
         let pam_start: FnPamStart = std::mem::transmute(pam_start_sym);
@@ -156,9 +187,13 @@ pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(),
             None
         };
 
-        let c_service = CString::new(service).map_err(|e| e.to_string())?;
-        let c_user = CString::new(username).map_err(|e| e.to_string())?;
-        let c_pass = CString::new(password).map_err(|e| e.to_string())?;
+        let to_c = |v: &str| CString::new(v).map_err(|e| {
+            libc::dlclose(handle);
+            PamFailure { code: Some(PAM_AUTH_ERR), message: e.to_string() }
+        });
+        let c_service = to_c(service)?;
+        let c_user = to_c(username)?;
+        let c_pass = to_c(password)?;
 
         let conv = PamConv {
             conv: Some(pam_conversation_cb),
@@ -169,7 +204,7 @@ pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(),
         let status = pam_start(c_service.as_ptr(), c_user.as_ptr(), &conv, &mut pamh);
         if status != PAM_SUCCESS || pamh.is_null() {
             libc::dlclose(handle);
-            return Err(format!("pam_start failed with status {}", status));
+            return Err(PamFailure::setup(format!("pam_start failed with status {}", status)));
         }
 
         let auth_status = pam_authenticate(pamh, 0);
@@ -204,12 +239,31 @@ pub fn authenticate(service: &str, username: &str, password: &str) -> Result<(),
         if final_status == PAM_SUCCESS {
             Ok(())
         } else {
-            Err(err_msg)
+            Err(PamFailure { code: Some(final_status), message: err_msg })
         }
     }
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn authenticate(_service: &str, _username: &str, _password: &str) -> Result<(), String> {
-    Err("PAM authentication is only supported on Linux".to_string())
+pub fn authenticate(_service: &str, _username: &str, _password: &str) -> Result<(), PamFailure> {
+    Err(PamFailure::setup("PAM authentication is only supported on Linux"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_wrong_password_ends_the_search_for_a_login_service() {
+        let f = |code: Option<i32>| PamFailure { code, message: String::new() };
+        // wrong password, too many tries, expired, new password needed, permission denied
+        for code in [7, 11, 13, 12, 6, 8] {
+            assert!(f(Some(code)).is_final(), "code {code}");
+        }
+        // the service itself could not be used: another may be tried
+        for code in [1, 2, 3, 4, 5, 9, 10, 19, 26] {
+            assert!(!f(Some(code)).is_final(), "code {code}");
+        }
+        assert!(!f(None).is_final(), "PAM not loaded or not started");
+    }
 }
